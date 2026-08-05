@@ -11,14 +11,20 @@ import { logger } from './utils/logger';
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
-    callback(null, true);
-  },
-  credentials: true,
+// Security middleware — relaxed for Vercel serverless
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: false,
 }));
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Handle preflight explicitly
+app.options('*', cors());
 
 // Body parser — increase limit for base64 photo uploads
 app.use(express.json({ limit: '10mb' }));

@@ -59,13 +59,15 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   });
 });
 
-// Start server
-app.listen(CONFIG.PORT, () => {
-  logger.info(`🚀 Server berjalan di http://localhost:${CONFIG.PORT}`);
-  logger.info(`📍 Kantor DPMPTSP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
-  logger.info(`📏 Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
-  logger.info(`🕐 Jam masuk: ${CONFIG.CHECKIN_START}:00-${CONFIG.CHECKIN_END}:00`);
-  logger.info(`🕐 Jam keluar: ${CONFIG.CHECKOUT_START}:00-${CONFIG.CHECKOUT_END}:00`);
-});
+// Start server (only if not in Vercel/serverless environment)
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  app.listen(CONFIG.PORT, () => {
+    logger.info(`🚀 Server berjalan di http://localhost:${CONFIG.PORT}`);
+    logger.info(`📍 Kantor DPMPTSP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
+    logger.info(`📏 Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
+    logger.info(`🕐 Jam masuk: ${CONFIG.CHECKIN_START}:00-${CONFIG.CHECKIN_END}:00`);
+    logger.info(`🕐 Jam keluar: ${CONFIG.CHECKOUT_START}:00-${CONFIG.CHECKOUT_END}:00`);
+  });
+}
 
 export default app;

@@ -72,7 +72,7 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="w-24 h-24 mx-auto mb-4 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/20 p-3">
               <img
-                src="/logo-mpp.png"
+                src="/LOGO-DPMPTSP-GOLD.png"
                 alt="Logo MPP DPMPTSP Kota Jambi"
                 className="w-full h-full object-contain"
               />

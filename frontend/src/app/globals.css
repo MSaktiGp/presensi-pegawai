@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+/* ============================================
+   Sistem Presensi DPMPTSP Kota Jambi
+   Global Styles & Design System
+   ============================================ */
+
+:root {
+  /* Primary - Biru DPMPTSP */
+  --primary-dark: #1B5E7D;
+  --primary-medium: #2B7FA3;
+  --primary-light: #E8F4F8;
+
+  /* Accent */
+  --accent-gold: #F4C430;
+  --accent-gold-hover: #E5B620;
+  --accent-red: #D62A3F;
+  --accent-red-light: #F5E6E8;
+
+  /* Neutral */
+  --bg-white: #FFFFFF;
+  --bg-gray-light: #F5F7FA;
+  --bg-gray: #F0F0F0;
+  --text-primary: #1A1A2E;
+  --text-secondary: #555770;
+  --text-muted: #8E8EA0;
+  --border-light: #E2E4E9;
+  --border-medium: #D0D3D9;
+
+  /* Status */
+  --success-green: #27AE60;
+  --success-green-light: #E8F8EF;
+  --warning-orange: #E67E22;
+  --warning-orange-light: #FEF4E6;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(27, 94, 125, 0.08);
+  --shadow-md: 0 4px 12px rgba(27, 94, 125, 0.12);
+  --shadow-lg: 0 8px 30px rgba(27, 94, 125, 0.15);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.08);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* Spacing */
+  --header-height: 64px;
+}
+
+@theme inline {
+  --color-background: var(--bg-white);
+  --color-foreground: var(--text-primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-medium: var(--primary-medium);
+  --color-primary-light: var(--primary-light);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-red: var(--accent-red);
+  --color-accent-red-light: var(--accent-red-light);
+  --color-success-green: var(--success-green);
+  --color-success-green-light: var(--success-green-light);
+  --color-warning-orange: var(--warning-orange);
+  --color-warning-orange-light: var(--warning-orange-light);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border-light: var(--border-light);
+  --color-bg-gray-light: var(--bg-gray-light);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg-gray-light);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-gray-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(39, 174, 96, 0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+/* ============================================
+   Component Styles
+   ============================================ */
+
+/* Card */
+.card {
+  background: var(--bg-white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
+  transition: box-shadow var(--transition-base);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Button Base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  outline: none;
+  text-decoration: none;
+  line-height: 1.4;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button Primary */
+.btn-primary {
+  background: var(--primary-dark);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-medium);
+  box-shadow: 0 4px 12px rgba(27, 94, 125, 0.3);
+}
+
+/* Button Gold */
+.btn-gold {
+  background: var(--accent-gold);
+  color: var(--primary-dark);
+}
+.btn-gold:hover:not(:disabled) {
+  background: var(--accent-gold-hover);
+  box-shadow: 0 4px 12px rgba(244, 196, 48, 0.4);
+}
+
+/* Button Danger */
+.btn-danger {
+  background: var(--accent-red);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #c02435;
+  box-shadow: 0 4px 12px rgba(214, 42, 63, 0.3);
+}
+
+/* Button Outline */
+.btn-outline {
+  background: transparent;
+  color: var(--primary-dark);
+  border: 2px solid var(--border-light);
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--primary-dark);
+  background: var(--primary-light);
+}
+
+/* Input */
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--bg-white);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--primary-medium);
+  box-shadow: 0 0 0 3px rgba(43, 127, 163, 0.15);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Status Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.badge-success {
+  background: var(--success-green-light);
+  color: var(--success-green);
+}
+.badge-warning {
+  background: var(--warning-orange-light);
+  color: var(--warning-orange);
+}
+.badge-danger {
+  background: var(--accent-red-light);
+  color: var(--accent-red);
+}
+.badge-neutral {
+  background: var(--bg-gray);
+  color: var(--text-muted);
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--primary-dark);
+  border-radius: 50%;
+  animation: spin-slow 0.8s linear infinite;
+}

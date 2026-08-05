@@ -20,12 +20,16 @@ export const logger = winston.createLogger({
         logFormat
       ),
     }),
-    new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-    }),
-    new winston.transports.File({
-      filename: 'logs/combined.log',
-    }),
+    // Di Vercel (serverless), filesystem bersifat read-only.
+    // Console transport sudah cukup karena Vercel akan menangkap stdout.
+    ...(process.env.VERCEL !== '1' ? [
+      new winston.transports.File({
+        filename: 'logs/error.log',
+        level: 'error',
+      }),
+      new winston.transports.File({
+        filename: 'logs/combined.log',
+      }),
+    ] : [])
   ],
 });

@@ -1,5 +1,11 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// Debug: hapus setelah koneksi berhasil
+if (typeof window !== 'undefined') {
+  console.log('[DEBUG] NEXT_PUBLIC_API_URL =', process.env.NEXT_PUBLIC_API_URL);
+  console.log('[DEBUG] API_URL yang dipakai =', API_URL);
+}
+
 interface ApiOptions {
   method?: string;
   body?: any;

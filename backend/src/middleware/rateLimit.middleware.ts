@@ -10,7 +10,14 @@ export const apiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Use default IP-based key generator; user-based limiting
-  // is handled by JWT middleware already being per-user.
-  validate: { xForwardedForHeader: false },
+  // Vercel uses proxy — extract IP from X-Forwarded-For header
+  keyGenerator: (req) => {
+    return (
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.ip ||
+      'unknown'
+    );
+  },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
+

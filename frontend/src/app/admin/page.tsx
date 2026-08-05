@@ -86,7 +86,7 @@ export default function AdminPage() {
         {/* Page Header */}
         <div className="animate-fade-in">
           <h2 className="text-2xl font-bold text-[var(--primary-dark)]">
-            <HiChartBar className="inline" /> Dashboard Admin
+            Dashboard Admin
           </h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
             Laporan presensi kehadiran pegawai
@@ -194,7 +194,6 @@ export default function AdminPage() {
             </div>
           ) : filteredRecords.length === 0 ? (
             <div className="text-center py-16">
-              <HiClipboardDocumentList className="text-4xl block mb-3" />
               <p className="text-[var(--text-secondary)] font-medium">Tidak ada data presensi</p>
               <p className="text-sm text-[var(--text-muted)] mt-1">
                 {searchName || filterDept ? 'Coba ubah filter pencarian.' : 'Belum ada pegawai yang presensi pada tanggal ini.'}

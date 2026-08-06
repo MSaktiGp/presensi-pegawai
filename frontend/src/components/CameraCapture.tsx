@@ -17,6 +17,7 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Step 1: Get the media stream and trigger render of video element
   const startCamera = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -35,34 +36,7 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
         audio: false,
       });
 
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = mediaStream;
-
-        // Wait for the video to be ready before playing
-        await new Promise<void>((resolve, reject) => {
-          const onLoadedMetadata = () => {
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            video.removeEventListener('error', onError);
-            resolve();
-          };
-          const onError = () => {
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            video.removeEventListener('error', onError);
-            reject(new Error('Video failed to load'));
-          };
-          // If metadata is already loaded, resolve immediately
-          if (video.readyState >= 1) {
-            resolve();
-          } else {
-            video.addEventListener('loadedmetadata', onLoadedMetadata);
-            video.addEventListener('error', onError);
-          }
-        });
-
-        await video.play();
-      }
-
+      // Set state first — this will cause React to render the <video> element
       setStream(mediaStream);
       setIsCameraActive(true);
     } catch (err: any) {
@@ -81,12 +55,43 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     setIsLoading(false);
   }, [stream]);
 
+  // Step 2: Once video element is rendered AND stream is available, attach and play
+  useEffect(() => {
+    if (!stream || !isCameraActive || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = stream;
+
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch (e) {
+        console.error('Video play failed:', e);
+      }
+    };
+
+    if (video.readyState >= 2) {
+      // Video data is already available
+      playVideo();
+    } else {
+      // Wait for enough data to start playing
+      const onCanPlay = () => {
+        video.removeEventListener('canplay', onCanPlay);
+        playVideo();
+      };
+      video.addEventListener('canplay', onCanPlay);
+      return () => {
+        video.removeEventListener('canplay', onCanPlay);
+      };
+    }
+  }, [stream, isCameraActive]);
+
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
-      setIsCameraActive(false);
     }
+    setIsCameraActive(false);
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -129,9 +134,6 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
       }
     };
   }, [stream]);

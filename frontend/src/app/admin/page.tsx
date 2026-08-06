@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
 import { formatTime, formatDate, formatDateAPI } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
-import { HiChartBar, HiClipboardDocumentList } from 'react-icons/hi2';
+import { HiChartBar, HiClipboardDocumentList, HiXMark } from 'react-icons/hi2';
 
 interface AttendanceRecord {
   pegawai_id: number;
@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [filterDept, setFilterDept] = useState<string>('');
   const [searchName, setSearchName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; nama: string; type: string } | null>(null);
 
   // Redirect if not admin
   useEffect(() => {
@@ -208,8 +209,10 @@ export default function AdminPage() {
                     <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Departemen</th>
                     <th className="text-center py-3 px-4 font-semibold">Masuk</th>
                     <th className="text-center py-3 px-4 font-semibold">Status</th>
+                    <th className="text-center py-3 px-4 font-semibold">Foto Masuk</th>
                     <th className="text-center py-3 px-4 font-semibold">Keluar</th>
                     <th className="text-center py-3 px-4 font-semibold">Status</th>
+                    <th className="text-center py-3 px-4 font-semibold">Foto Keluar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,11 +238,45 @@ export default function AdminPage() {
                       <td className="py-3 px-4 text-center">
                         <StatusBadge status={record.checkin?.status || null} />
                       </td>
+                      <td className="py-3 px-4 text-center">
+                        {record.checkin?.photo ? (
+                          <button
+                            onClick={() => setPreviewPhoto({ url: record.checkin!.photo, nama: record.nama, type: 'Masuk' })}
+                            className="inline-block group"
+                            title="Lihat foto masuk"
+                          >
+                            <img
+                              src={record.checkin.photo}
+                              alt={`Foto masuk ${record.nama}`}
+                              className="w-10 h-10 rounded-lg object-cover border-2 border-[var(--border-light)] group-hover:border-[var(--primary-dark)] transition-all group-hover:scale-110 cursor-pointer"
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">-</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-center font-mono">
                         {record.checkout ? formatTime(record.checkout.time) : '-'}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <StatusBadge status={record.checkout?.status || null} />
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {record.checkout?.photo ? (
+                          <button
+                            onClick={() => setPreviewPhoto({ url: record.checkout!.photo, nama: record.nama, type: 'Keluar' })}
+                            className="inline-block group"
+                            title="Lihat foto keluar"
+                          >
+                            <img
+                              src={record.checkout.photo}
+                              alt={`Foto keluar ${record.nama}`}
+                              className="w-10 h-10 rounded-lg object-cover border-2 border-[var(--border-light)] group-hover:border-[var(--primary-dark)] transition-all group-hover:scale-110 cursor-pointer"
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -249,6 +286,42 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-lg w-full animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--primary-dark)] text-white">
+              <div>
+                <p className="font-semibold text-sm">{previewPhoto.nama}</p>
+                <p className="text-xs text-white/70">Foto Presensi {previewPhoto.type}</p>
+              </div>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+              >
+                <HiXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Photo */}
+            <div className="bg-black">
+              <img
+                src={previewPhoto.url}
+                alt={`Foto presensi ${previewPhoto.nama}`}
+                className="w-full max-h-[70vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -35,7 +35,7 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
         a.checkout_photo_path
       FROM pegawai p
       LEFT JOIN attendance a ON p.id = a.pegawai_id AND a.date = $1
-      WHERE p.role != 'admin'
+      WHERE 1=1
     `;
     const params: any[] = [reportDate];
 

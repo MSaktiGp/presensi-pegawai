@@ -98,13 +98,9 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    // Ensure the video has valid dimensions
-    const width = video.videoWidth;
-    const height = video.videoHeight;
-    if (!width || !height) {
-      setError('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
-      return;
-    }
+    // Use videoWidth/videoHeight, fall back to element dimensions or defaults
+    const width = video.videoWidth || video.clientWidth || 640;
+    const height = video.videoHeight || video.clientHeight || 480;
 
     canvas.width = width;
     canvas.height = height;
@@ -113,7 +109,7 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     if (!ctx) return;
 
     // Mirror the image for selfie camera
-    ctx.translate(canvas.width, 0);
+    ctx.translate(width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, width, height);
 

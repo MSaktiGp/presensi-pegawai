@@ -21,6 +21,11 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     setIsLoading(true);
     setError(null);
     try {
+      // Stop any existing stream first
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -31,8 +36,31 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
       });
 
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
+        const video = videoRef.current;
+        video.srcObject = mediaStream;
+
+        // Wait for the video to be ready before playing
+        await new Promise<void>((resolve, reject) => {
+          const onLoadedMetadata = () => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            video.removeEventListener('error', onError);
+            resolve();
+          };
+          const onError = () => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata);
+            video.removeEventListener('error', onError);
+            reject(new Error('Video failed to load'));
+          };
+          // If metadata is already loaded, resolve immediately
+          if (video.readyState >= 1) {
+            resolve();
+          } else {
+            video.addEventListener('loadedmetadata', onLoadedMetadata);
+            video.addEventListener('error', onError);
+          }
+        });
+
+        await video.play();
       }
 
       setStream(mediaStream);
@@ -45,17 +73,22 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
         message = 'Kamera tidak ditemukan pada perangkat ini.';
       } else if (err.name === 'NotReadableError') {
         message = 'Kamera sedang digunakan oleh aplikasi lain.';
+      } else if (err.name === 'AbortError') {
+        message = 'Kamera dibatalkan. Silakan coba lagi.';
       }
       setError(message);
     }
     setIsLoading(false);
-  }, []);
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
       setIsCameraActive(false);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   }, [stream]);
 
@@ -64,8 +97,17 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+
+    // Ensure the video has valid dimensions
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) {
+      setError('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -73,7 +115,7 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     // Mirror the image for selfie camera
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, width, height);
 
     // Compress to JPEG
     const photoBase64 = canvas.toDataURL('image/jpeg', 0.7);
@@ -91,6 +133,9 @@ export default function CameraCapture({ onCapture, capturedPhoto, onRetake }: Ca
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, [stream]);

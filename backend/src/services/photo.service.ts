@@ -31,7 +31,8 @@ export const savePhoto = async (
 
     // Generate file path
     const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const wib = new Date(today.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+    const dateStr = `${wib.getFullYear()}-${String(wib.getMonth() + 1).padStart(2, '0')}-${String(wib.getDate()).padStart(2, '0')}`;
     const timestamp = Date.now();
     const filename = `${pegawaiId}-${type}-${timestamp}.jpg`;
     const storagePath = `${dateStr}/${filename}`;

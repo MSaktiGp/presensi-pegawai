@@ -1,12 +1,23 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database';
+import { CONFIG } from '../config/constants';
 import { sendSuccess, sendError } from '../utils/response';
 import { logger } from '../utils/logger';
+
+/** Get today's date string (YYYY-MM-DD) in WIB timezone. */
+const getWIBDateString = (): string => {
+  const now = new Date();
+  const wib = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+  const year = wib.getFullYear();
+  const month = String(wib.getMonth() + 1).padStart(2, '0');
+  const day = String(wib.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const getAttendanceReport = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, pegawai_id, departemen } = req.query;
-    const reportDate = date ? String(date) : new Date().toISOString().split('T')[0];
+    const reportDate = date ? String(date) : getWIBDateString();
 
     let sql = `
       SELECT 
@@ -92,7 +103,7 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
 export const getAttemptLogs = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, pegawai_id } = req.query;
-    const reportDate = date ? String(date) : new Date().toISOString().split('T')[0];
+    const reportDate = date ? String(date) : getWIBDateString();
 
     let sql = `
       SELECT 

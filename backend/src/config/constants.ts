@@ -5,7 +5,10 @@ export const CONFIG = {
   // Office Location - DPMPTSP Kota Jambi
   OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
   OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
-  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '100'),
+  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '1000'),
+
+  // Timezone WIB (UTC+7)
+  TIMEZONE: 'Asia/Jakarta',
 
   // Working Hours
   CHECKIN_START: 6,   // 06:00

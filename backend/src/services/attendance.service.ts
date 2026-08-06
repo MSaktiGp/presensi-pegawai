@@ -4,6 +4,27 @@ import { isWithinRadius } from './geolocation.service';
 import { savePhoto } from './photo.service';
 import { logger } from '../utils/logger';
 
+/**
+ * Get current date/time in WIB (Asia/Jakarta, UTC+7).
+ */
+const getWIBDate = (): Date => {
+  const now = new Date();
+  // Create a date string in WIB timezone and parse it back
+  const wibString = now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE });
+  return new Date(wibString);
+};
+
+/**
+ * Get today's date string (YYYY-MM-DD) in WIB timezone.
+ */
+const getWIBDateString = (): string => {
+  const wib = getWIBDate();
+  const year = wib.getFullYear();
+  const month = String(wib.getMonth() + 1).padStart(2, '0');
+  const day = String(wib.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export interface AttendanceResult {
   success: boolean;
   message: string;
@@ -40,7 +61,7 @@ const logAttempt = async (
  * Check if current time is within allowed hours for checkin/checkout.
  */
 const isWithinWorkingHours = (type: 'checkin' | 'checkout'): { allowed: boolean; message: string } => {
-  const now = new Date();
+  const now = getWIBDate();
   const currentHour = now.getHours();
 
   if (type === 'checkin') {
@@ -69,7 +90,7 @@ const checkDuplicate = async (
   pegawaiId: number,
   type: 'checkin' | 'checkout'
 ): Promise<{ isDuplicate: boolean; lastTime?: string }> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getWIBDateString();
 
   const result = await query(
     `SELECT ${type}_time FROM attendance 
@@ -87,6 +108,7 @@ const checkDuplicate = async (
         lastTime: new Date(lastTime).toLocaleTimeString('id-ID', {
           hour: '2-digit',
           minute: '2-digit',
+          timeZone: CONFIG.TIMEZONE,
         }),
       };
     }
@@ -107,7 +129,8 @@ export const processAttendance = async (
   type: 'checkin' | 'checkout'
 ): Promise<AttendanceResult> => {
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const wibNow = getWIBDate();
+  const today = getWIBDateString();
 
   // 1. Validate working hours
   const hoursCheck = isWithinWorkingHours(type);
@@ -167,7 +190,7 @@ export const processAttendance = async (
   // 5. Determine status
   let status = 'success';
   if (type === 'checkin') {
-    const currentHour = now.getHours();
+    const currentHour = wibNow.getHours();
     // Late if after 9 AM for checkin
     if (currentHour >= 9) {
       status = 'late';
@@ -231,7 +254,7 @@ export const processAttendance = async (
  * Get today's attendance status for a pegawai.
  */
 export const getTodayStatus = async (pegawaiId: number) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getWIBDateString();
 
   const result = await query(
     `SELECT checkin_time, checkin_status, checkin_distance_from_office,

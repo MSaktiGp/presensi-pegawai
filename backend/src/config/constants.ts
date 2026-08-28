@@ -10,7 +10,8 @@ export const CONFIG = {
   // Timezone WIB (UTC+7)
   TIMEZONE: 'Asia/Jakarta',
 
-  // Friday early checkout
+  // Checkout restrictions
+  CHECKOUT_START: 16,        // 16:00 WIB on Mon-Thu
   FRIDAY_CHECKOUT_START: 11, // 11:00 WIB on Fridays
 
   // Duplicate Prevention

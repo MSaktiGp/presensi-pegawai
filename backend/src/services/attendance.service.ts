@@ -60,7 +60,7 @@ const logAttempt = async (
 /**
  * Check if current time is within allowed hours for checkin/checkout.
  * - Checkin: no time restriction (allowed any time).
- * - Checkout: no restriction on Mon-Thu. On Friday checkout is allowed from 11:00 WIB.
+ * - Checkout: from 16:00 WIB on Mon-Thu, from 11:00 WIB on Friday. No end-time limit.
  */
 const isWithinWorkingHours = (type: 'checkin' | 'checkout'): { allowed: boolean; message: string } => {
   // Checkin has no time restriction
@@ -68,19 +68,20 @@ const isWithinWorkingHours = (type: 'checkin' | 'checkout'): { allowed: boolean;
     return { allowed: true, message: '' };
   }
 
-  // Checkout: check Friday early-release rule
+  // Checkout: determine the earliest allowed hour based on day
   const now = getWIBDate();
   const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri
   const currentHour = now.getHours();
+  const earliestHour = dayOfWeek === 5 ? CONFIG.FRIDAY_CHECKOUT_START : CONFIG.CHECKOUT_START;
 
-  if (dayOfWeek === 5 && currentHour < CONFIG.FRIDAY_CHECKOUT_START) {
+  if (currentHour < earliestHour) {
+    const label = dayOfWeek === 5 ? 'Hari Jumat, presensi' : 'Presensi';
     return {
       allowed: false,
-      message: `Hari Jumat, presensi keluar tersedia mulai jam ${String(CONFIG.FRIDAY_CHECKOUT_START).padStart(2, '0')}:00. Saat ini jam ${String(currentHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}.`,
+      message: `${label} keluar tersedia mulai jam ${String(earliestHour).padStart(2, '0')}:00. Saat ini jam ${String(currentHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}.`,
     };
   }
 
-  // All other days/times: no restriction
   return { allowed: true, message: '' };
 };
 

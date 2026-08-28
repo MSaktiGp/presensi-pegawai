@@ -42,12 +42,16 @@ export const getGreeting = (): string => {
 
 /**
  * Get current attendance period.
+ * Checkin: always available. Checkout: from 16:00 (Friday from 11:00).
  */
-export const getCurrentPeriod = (): 'checkin' | 'checkout' | 'none' => {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour < 11) return 'checkin';
-  if (hour >= 15 && hour < 19) return 'checkout';
-  return 'none';
+export const getCurrentPeriod = (): 'checkin' | 'checkout' | 'both' => {
+  const now = new Date();
+  const hour = now.getHours();
+  const day = now.getDay(); // 0=Sun, 5=Fri
+  const checkoutStart = day === 5 ? 11 : 16;
+
+  if (hour >= checkoutStart) return 'both';
+  return 'checkin';
 };
 
 /**

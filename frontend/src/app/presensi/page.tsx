@@ -113,8 +113,8 @@ export default function PresensiPage() {
   };
 
   const period = getCurrentPeriod();
-  const canCheckin = !todayStatus.checkin && period === 'checkin';
-  const canCheckout = todayStatus.checkin && !todayStatus.checkout && period === 'checkout';
+  const canCheckin = !todayStatus.checkin;
+  const canCheckout = todayStatus.checkin && !todayStatus.checkout && (period === 'both' || period === 'checkout');
   const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 100);
   const canSubmit = capturedPhoto && currentPosition && isWithinRadius && !isSubmitting;
 
@@ -327,20 +327,12 @@ export default function PresensiPage() {
             <h3 className="font-bold text-lg text-[var(--primary-dark)] mb-1">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Presensi Hari Ini Selesai!'
-                : period === 'none' && !todayStatus.checkin
-                ? 'Diluar Jam Presensi'
-                : todayStatus.checkin && !todayStatus.checkout && period !== 'checkout'
-                ? 'Menunggu Jam Keluar'
-                : 'Diluar Jam Presensi'}
+                : 'Menunggu Jam Keluar'}
             </h3>
             <p className="text-sm text-[var(--text-secondary)]">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Terima kasih atas kehadirannya hari ini.'
-                : period === 'none' && !todayStatus.checkin
-                ? 'Presensi masuk: 06:00-11:00 • Presensi keluar: 16:00-19:00'
-                : todayStatus.checkin && !todayStatus.checkout && period !== 'checkout'
-                ? 'Presensi keluar tersedia jam 16:00-19:00.'
-                : 'Presensi masuk: 06:00-11:00 • Presensi keluar: 16:00-19:00'}
+                : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11' : '16'}:00.`}
             </p>
           </div>
         )}

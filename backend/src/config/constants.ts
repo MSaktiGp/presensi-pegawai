@@ -10,11 +10,8 @@ export const CONFIG = {
   // Timezone WIB (UTC+7)
   TIMEZONE: 'Asia/Jakarta',
 
-  // Working Hours
-  CHECKIN_START: 6,   // 06:00
-  CHECKIN_END: 11,    // 11:00
-  CHECKOUT_START: 15, // 15:00
-  CHECKOUT_END: 19,   // 19:00
+  // Friday early checkout
+  FRIDAY_CHECKOUT_START: 11, // 11:00 WIB on Fridays
 
   // Duplicate Prevention
   DUPLICATE_WINDOW_MINUTES: 30,

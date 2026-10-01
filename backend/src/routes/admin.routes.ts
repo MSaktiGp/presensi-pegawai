@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAttendanceReport, getAttemptLogs } from '../controllers/admin.controller';
+import { getAttendanceReport, getAttemptLogs, getMonthlyChart } from '../controllers/admin.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
@@ -10,6 +10,8 @@ router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 
 router.get('/attendance-report', getAttendanceReport);
+router.get('/monthly-chart', getMonthlyChart);
 router.get('/attempt-logs', getAttemptLogs);
 
 export default router;
+

@@ -7,6 +7,7 @@ import { apiRateLimiter } from './middleware/rateLimit.middleware';
 import authRoutes from './routes/auth.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import adminRoutes from './routes/admin.routes';
+import superadminRoutes from './routes/superadmin.routes';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -74,7 +76,9 @@ if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     logger.info(`📍 Kantor DPMPTSP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
     logger.info(`📏 Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
     logger.info(`🕐 Jam masuk: tanpa batasan waktu`);
-    logger.info(`🕐 Jam keluar: mulai ${CONFIG.CHECKOUT_START}:00 (Jumat: ${CONFIG.FRIDAY_CHECKOUT_START}:00)`);
+    const monThuStart = `${String(CONFIG.CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.CHECKOUT_START_MINUTE).padStart(2, '0')}`;
+    const friStart = `${String(CONFIG.FRIDAY_CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.FRIDAY_CHECKOUT_START_MINUTE).padStart(2, '0')}`;
+    logger.info(`🕐 Jam keluar: mulai ${monThuStart} (Jumat: ${friStart})`);
   });
 }
 

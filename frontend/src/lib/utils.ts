@@ -2,6 +2,7 @@
  * Format a timestamp to Indonesian locale time string.
  */
 export const formatTime = (timestamp: string | Date): string => {
+  if (!timestamp) return '-';
   const date = new Date(timestamp);
   return date.toLocaleTimeString('id-ID', {
     hour: '2-digit',
@@ -13,6 +14,7 @@ export const formatTime = (timestamp: string | Date): string => {
  * Format a timestamp to Indonesian locale date string.
  */
 export const formatDate = (timestamp: string | Date): string => {
+  if (!timestamp) return '-';
   const date = new Date(timestamp);
   return date.toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -42,15 +44,21 @@ export const getGreeting = (): string => {
 
 /**
  * Get current attendance period.
- * Checkin: always available. Checkout: from 16:00 (Friday from 11:00).
+ * Checkin: always available. Checkout: from 16:30 (Friday from 11:00).
  */
 export const getCurrentPeriod = (): 'checkin' | 'checkout' | 'both' => {
   const now = new Date();
   const hour = now.getHours();
+  const minute = now.getMinutes();
   const day = now.getDay(); // 0=Sun, 5=Fri
-  const checkoutStart = day === 5 ? 11 : 16;
 
-  if (hour >= checkoutStart) return 'both';
+  const checkoutStartHour = day === 5 ? 11 : 16;
+  const checkoutStartMinute = day === 5 ? 0 : 30;
+
+  const currentTotal = hour * 60 + minute;
+  const targetTotal = checkoutStartHour * 60 + checkoutStartMinute;
+
+  if (currentTotal >= targetTotal) return 'both';
   return 'checkin';
 };
 

@@ -161,13 +161,44 @@ export default function PresensiPage() {
               <span className="text-sm font-semibold">{user?.nama}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">NIP</span>
-              <span className="text-sm font-mono font-semibold">{user?.nip}</span>
+              <span className="text-sm text-[var(--text-secondary)]">Username</span>
+              <span className="text-sm font-mono font-semibold">{user?.username}</span>
             </div>
+            {user?.nip && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">NIP</span>
+                <span className="text-sm font-mono font-semibold">{user?.nip}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Departemen</span>
-              <span className="text-sm font-semibold">{user?.departemen}</span>
+              <span className="text-sm text-[var(--text-secondary)]">Tipe</span>
+              <span className="text-sm font-semibold capitalize">
+                {user?.user_type === 'pegawai_gerai' ? 'Pegawai Gerai' :
+                 user?.user_type === 'satpam' ? 'Satpam' :
+                 user?.user_type === 'cs' ? (user?.sub_type === 'resepsionis' ? 'CS - Resepsionis' : 'CS - Cleaning Service') :
+                 user?.user_type}
+              </span>
             </div>
+            {user?.gerai && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">Gerai</span>
+                <span className="text-sm font-semibold">{user.gerai.kode} — {user.gerai.nama}</span>
+              </div>
+            )}
+            {user?.shift && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">Shift</span>
+                <span className="text-sm font-semibold capitalize">
+                  {user.shift.nama} ({user.shift.jam_masuk?.substring(0, 5)} - {user.shift.jam_keluar?.substring(0, 5)})
+                </span>
+              </div>
+            )}
+            {user?.departemen && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">Departemen</span>
+                <span className="text-sm font-semibold">{user?.departemen}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -332,7 +363,7 @@ export default function PresensiPage() {
             <p className="text-sm text-[var(--text-secondary)]">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Terima kasih atas kehadirannya hari ini.'
-                : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11' : '16'}:00.`}
+                : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
             </p>
           </div>
         )}

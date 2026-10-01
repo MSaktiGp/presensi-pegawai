@@ -3,12 +3,32 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiPost, apiGet } from '@/lib/api';
 
+interface GeraiInfo {
+  id: number;
+  kode: string;
+  nama: string;
+}
+
+interface ShiftInfo {
+  id: number;
+  nama: string;
+  jam_masuk: string;
+  jam_keluar: string;
+  is_cross_midnight: boolean;
+  late_threshold_minutes: number;
+}
+
 interface User {
   id: number;
   nama: string;
-  nip: string;
+  username: string;
+  nip?: string;
   departemen: string;
   role: string;
+  user_type: string;
+  sub_type?: string;
+  gerai?: GeraiInfo | null;
+  shift?: ShiftInfo | null;
 }
 
 interface AuthContextType {
@@ -16,7 +36,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (nip: string, password: string) => Promise<{ success: boolean; message: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
 }
 
@@ -53,8 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = useCallback(async (nip: string, password: string) => {
-    const response = await apiPost('/auth/login', { nip, password });
+  const login = useCallback(async (username: string, password: string) => {
+    const response = await apiPost('/auth/login', { username, password });
 
     if (response.success && response.data) {
       const { token: newToken, user: userData } = response.data;

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { HiExclamationTriangle, HiEye, HiEyeSlash } from 'react-icons/hi2';
 
 export default function LoginPage() {
-  const [nip, setNip] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,9 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      if (user?.role === 'admin') {
+      if (user?.role === 'superadmin') {
+        router.push('/superadmin');
+      } else if (user?.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/presensi');
@@ -30,7 +32,7 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    const result = await login(nip, password);
+    const result = await login(username, password);
 
     if (result.success) {
       // AuthContext will update, useEffect will handle redirect
@@ -93,7 +95,7 @@ export default function LoginPage() {
                 Masuk ke Akun Anda
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
-                Gunakan NIP dan password untuk login
+                Gunakan username dan password untuk login
               </p>
             </div>
 
@@ -107,18 +109,18 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* NIP */}
+              {/* Username */}
               <div>
-                <label htmlFor="nip" className="block text-sm font-semibold text-[var(--text-secondary)] mb-1.5">
-                  Nomor Induk Pegawai (NIP)
+                <label htmlFor="username" className="block text-sm font-semibold text-[var(--text-secondary)] mb-1.5">
+                  Username
                 </label>
                 <div className="relative">
                   <input
-                    id="nip"
+                    id="username"
                     type="text"
-                    value={nip}
-                    onChange={(e) => setNip(e.target.value)}
-                    placeholder="Masukkan NIP"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Contoh: 40B, Budi Santoso"
                     className="input pl-11"
                     required
                     autoComplete="username"
@@ -156,7 +158,7 @@ export default function LoginPage() {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={isLoading || !nip || !password}
+                disabled={isLoading || !username || !password}
                 className="btn btn-primary w-full py-3.5 text-base mt-2"
                 id="btn-login"
               >

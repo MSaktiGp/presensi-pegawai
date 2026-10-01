@@ -4,14 +4,21 @@ import { CONFIG } from '../config/constants';
 import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
+export interface AuthUser {
+  id: number;
+  username: string;
+  nama: string;
+  departemen: string;
+  role: string;
+  user_type: string;
+  sub_type?: string;
+  gerai_id?: number;
+  // Legacy field — kept for backward compat
+  nip?: string;
+}
+
 export interface AuthRequest extends Request {
-  user?: {
-    id: number;
-    nip: string;
-    nama: string;
-    departemen: string;
-    role: string;
-  };
+  user?: AuthUser;
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -25,13 +32,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     const token = authHeader.split(' ')[1];
 
-    const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as {
-      id: number;
-      nip: string;
-      nama: string;
-      departemen: string;
-      role: string;
-    };
+    const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as AuthUser;
 
     req.user = decoded;
     next();
@@ -41,3 +42,4 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     return;
   }
 };
+

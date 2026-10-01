@@ -1,25 +1,24 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.middleware';
-import { ADMIN_ROLES } from '../config/constants';
+import { ROLES } from '../config/constants';
 import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
-export const adminAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+export const superAdminAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
     sendError(res, 'Autentikasi diperlukan.', 401);
     return;
   }
 
-  if (!ADMIN_ROLES.includes(req.user.role as any)) {
-    logger.warn('Non-admin user attempted to access admin route', {
+  if (req.user.role !== ROLES.SUPERADMIN) {
+    logger.warn('Non-superadmin user attempted to access superadmin route', {
       userId: req.user.id,
       username: req.user.username,
       role: req.user.role,
     });
-    sendError(res, 'Anda tidak memiliki akses ke halaman ini.', 403);
+    sendError(res, 'Hanya Super Admin yang dapat mengakses fitur ini.', 403);
     return;
   }
 
   next();
 };
-

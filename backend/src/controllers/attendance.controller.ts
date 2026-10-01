@@ -85,8 +85,12 @@ export const getUserData = async (req: AuthRequest, res: Response): Promise<void
 
     sendSuccess(res, {
       nama: req.user.nama,
+      username: req.user.username,
       nip: req.user.nip,
       departemen: req.user.departemen,
+      user_type: req.user.user_type,
+      sub_type: req.user.sub_type,
+      gerai_id: req.user.gerai_id,
       office_location: {
         latitude: CONFIG.OFFICE_LAT,
         longitude: CONFIG.OFFICE_LNG,

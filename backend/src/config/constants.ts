@@ -5,14 +5,28 @@ export const CONFIG = {
   // Office Location - DPMPTSP Kota Jambi
   OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
   OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
-  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '1000'),
+  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'),
 
   // Timezone WIB (UTC+7)
   TIMEZONE: 'Asia/Jakarta',
 
-  // Checkout restrictions
-  CHECKOUT_START: 16,        // 16:00 WIB on Mon-Thu
-  FRIDAY_CHECKOUT_START: 11, // 11:00 WIB on Fridays
+  // Default office hours (07:30 - 16:30 WIB)
+  // Note: Actual shift hours are now driven by shift_config table in DB.
+  // These constants serve as fallback defaults only.
+  DEFAULT_CHECKIN_HOUR: 7,
+  DEFAULT_CHECKIN_MINUTE: 30,
+  DEFAULT_CHECKOUT_HOUR: 16,
+  DEFAULT_CHECKOUT_MINUTE: 30,
+
+  // Checkin late threshold (legacy fallback — now per-shift via DB)
+  CHECKIN_LATE_HOUR: 9,
+  CHECKIN_LATE_MINUTE: 0,
+
+  // Checkout restrictions (legacy fallback — now per-shift via DB)
+  CHECKOUT_START_HOUR: 16,
+  CHECKOUT_START_MINUTE: 30,
+  FRIDAY_CHECKOUT_START_HOUR: 11,
+  FRIDAY_CHECKOUT_START_MINUTE: 0,
 
   // Duplicate Prevention
   DUPLICATE_WINDOW_MINUTES: 30,
@@ -35,3 +49,35 @@ export const CONFIG = {
   RATE_LIMIT_WINDOW_MS: 60 * 1000, // 1 minute
   RATE_LIMIT_MAX: 10, // 10 requests per minute
 };
+
+// Role constants
+export const ROLES = {
+  PEGAWAI_GERAI: 'pegawai_gerai',
+  SATPAM: 'satpam',
+  CS: 'cs',
+  ADMIN: 'admin',
+  SUPERADMIN: 'superadmin',
+} as const;
+
+export type Role = typeof ROLES[keyof typeof ROLES];
+
+// User type constants (same values as roles for normal users)
+export const USER_TYPES = {
+  PEGAWAI_GERAI: 'pegawai_gerai',
+  SATPAM: 'satpam',
+  CS: 'cs',
+} as const;
+
+export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES];
+
+// CS sub-types
+export const CS_SUB_TYPES = {
+  RESEPSIONIS: 'resepsionis',
+  CLEANING_SERVICE: 'cleaning_service',
+} as const;
+
+// Roles that can perform attendance
+export const ATTENDANCE_ROLES: Role[] = [ROLES.PEGAWAI_GERAI, ROLES.SATPAM, ROLES.CS];
+
+// Roles that can access admin dashboard
+export const ADMIN_ROLES: Role[] = [ROLES.ADMIN, ROLES.SUPERADMIN];

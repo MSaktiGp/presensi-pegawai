@@ -57,23 +57,23 @@ INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role
 -- 5. Seed Pegawai Gerai (username = kode gerai)
 -- ============================================
 INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, gerai_id, is_active) VALUES
-  ('Pegawai Gerai 40B', '40B', '200001', 'Pelayanan', 'gerai40b@dpmptsp-jambi.go.id',
+  ('Petugas Gerai PT PLN', '40B', '200001', 'Pelayanan', 'gerai40b@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '40B'), TRUE),
 
-  ('Pegawai Gerai 61A', '61A', '200002', 'Pelayanan', 'gerai61a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai BPJS Kesehatan', '61A', '200002', 'Pelayanan', 'gerai61a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '61A'), TRUE),
 
-  ('Pegawai Gerai 62A', '62A', '200003', 'Pelayanan', 'gerai62a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai DJP', '62A', '200003', 'Pelayanan', 'gerai62a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '62A'), TRUE),
 
-  ('Pegawai Gerai 63A', '63A', '200004', 'Pelayanan', 'gerai63a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai PT Pos Indonesia', '63A', '200004', 'Pelayanan', 'gerai63a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '63A'), TRUE),
 
-  ('Pegawai Gerai 64A', '64A', '200005', 'Pelayanan', 'gerai64a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai PERUMDAM', '64A', '200005', 'Pelayanan', 'gerai64a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '64A'), TRUE);
 
@@ -81,29 +81,29 @@ INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role
 -- 6. Seed Satpam (username = nama lengkap)
 -- ============================================
 INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, is_active) VALUES
-  ('Budi Santoso', 'Budi Santoso', '300001', 'Keamanan', 'budi.santoso@dpmptsp-jambi.go.id',
+  ('Budi Santoso', 'budisantoso', '300001', 'Keamanan', 'budi.santoso@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE),
 
-  ('Andi Wijaya', 'Andi Wijaya', '300002', 'Keamanan', 'andi.wijaya@dpmptsp-jambi.go.id',
+  ('Andi Wijaya', 'andiwijaya', '300002', 'Keamanan', 'andi.wijaya@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE),
 
-  ('Hendra Gunawan', 'Hendra Gunawan', '300003', 'Keamanan', 'hendra.gunawan@dpmptsp-jambi.go.id',
+  ('Hendra Gunawan', 'hendragunawan', '300003', 'Keamanan', 'hendra.gunawan@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE);
 
 -- ============================================
 -- 7. Seed CS (username = nama lengkap)
 -- ============================================
 INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, sub_type, is_active) VALUES
-  ('Rina Wati', 'Rina Wati', '400001', 'Pelayanan', 'rina.wati@dpmptsp-jambi.go.id',
+  ('Rina Wati', 'rinawati', '400001', 'Pelayanan', 'rina.wati@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'resepsionis', TRUE),
 
-  ('Siti Nurhaliza', 'Siti Nurhaliza', '400002', 'Pelayanan', 'siti.nurhaliza@dpmptsp-jambi.go.id',
+  ('Siti Nurhaliza', 'sitinurhaliza', '400002', 'Pelayanan', 'siti.nurhaliza@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'resepsionis', TRUE),
 
-  ('Maya Anggraini', 'Maya Anggraini', '400003', 'Kebersihan', 'maya.anggraini@dpmptsp-jambi.go.id',
+  ('Maya Anggraini', 'mayaanggraini', '400003', 'Kebersihan', 'maya.anggraini@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'cleaning_service', TRUE),
 
-  ('Dewi Lestari', 'Dewi Lestari', '400004', 'Kebersihan', 'dewi.lestari@dpmptsp-jambi.go.id',
+  ('Dewi Lestari', 'dewilestari', '400004', 'Kebersihan', 'dewi.lestari@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'cleaning_service', TRUE);
 
 -- ============================================
@@ -111,17 +111,17 @@ INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role
 -- ============================================
 INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active) VALUES
   -- Budi Santoso → Shift Pagi
-  ((SELECT id FROM pegawai WHERE username = 'Budi Santoso'),
+  ((SELECT id FROM pegawai WHERE username = 'budisantoso'),
    (SELECT id FROM shift_config WHERE nama_shift = 'pagi' AND user_type = 'satpam'),
    '2026-10-01', TRUE),
 
   -- Andi Wijaya → Shift Siang
-  ((SELECT id FROM pegawai WHERE username = 'Andi Wijaya'),
+  ((SELECT id FROM pegawai WHERE username = 'andiwijaya'),
    (SELECT id FROM shift_config WHERE nama_shift = 'siang' AND user_type = 'satpam'),
    '2026-10-01', TRUE),
 
   -- Hendra Gunawan → Shift Malam
-  ((SELECT id FROM pegawai WHERE username = 'Hendra Gunawan'),
+  ((SELECT id FROM pegawai WHERE username = 'hendragunawan'),
    (SELECT id FROM shift_config WHERE nama_shift = 'malam' AND user_type = 'satpam'),
    '2026-10-01', TRUE);
 
@@ -129,19 +129,19 @@ INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai
 -- 9. Assign Shift ke CS
 -- ============================================
 INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active) VALUES
-  ((SELECT id FROM pegawai WHERE username = 'Rina Wati'),
+  ((SELECT id FROM pegawai WHERE username = 'rinawati'),
    (SELECT id FROM shift_config WHERE nama_shift = 'reguler' AND user_type = 'cs'),
    '2026-10-01', TRUE),
 
-  ((SELECT id FROM pegawai WHERE username = 'Siti Nurhaliza'),
+  ((SELECT id FROM pegawai WHERE username = 'sitinurhaliza'),
    (SELECT id FROM shift_config WHERE nama_shift = 'reguler' AND user_type = 'cs'),
    '2026-10-01', TRUE),
 
-  ((SELECT id FROM pegawai WHERE username = 'Maya Anggraini'),
+  ((SELECT id FROM pegawai WHERE username = 'mayaanggraini'),
    (SELECT id FROM shift_config WHERE nama_shift = 'reguler' AND user_type = 'cs'),
    '2026-10-01', TRUE),
 
-  ((SELECT id FROM pegawai WHERE username = 'Dewi Lestari'),
+  ((SELECT id FROM pegawai WHERE username = 'dewilestari'),
    (SELECT id FROM shift_config WHERE nama_shift = 'reguler' AND user_type = 'cs'),
    '2026-10-01', TRUE);
 

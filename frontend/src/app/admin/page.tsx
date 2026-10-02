@@ -40,16 +40,18 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; nama: string; type: string } | null>(null);
 
-  // Redirect if not admin
+  const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin';
+
+  // Redirect if not admin/superadmin
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || (user && user.role !== 'admin'))) {
+    if (!authLoading && (!isAuthenticated || (user && !isAdminRole))) {
       router.push(isAuthenticated ? '/presensi' : '/');
     }
-  }, [isAuthenticated, authLoading, user, router]);
+  }, [isAuthenticated, authLoading, user, isAdminRole, router]);
 
   // Fetch report data
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'admin') return;
+    if (!isAuthenticated || !isAdminRole) return;
 
     const fetchReport = async () => {
       setIsLoading(true);
@@ -61,7 +63,7 @@ export default function AdminPage() {
     };
 
     fetchReport();
-  }, [selectedDate, isAuthenticated, user]);
+  }, [selectedDate, isAuthenticated, isAdminRole]);
 
   // Filter records
   const filteredRecords = reportData?.report.filter((record) => {

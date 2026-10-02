@@ -18,7 +18,7 @@ export default function Header() {
     router.push('/');
   };
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   return (
     <header className="w-full bg-primary-dark text-white shadow-lg relative overflow-hidden">

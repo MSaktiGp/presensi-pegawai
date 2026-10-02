@@ -50,20 +50,27 @@ ALTER TABLE pegawai ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE pegawai ADD COLUMN IF NOT EXISTS gerai_id INT;
 
 -- ============================================
--- 4. Migrasi data existing
+-- 4. Drop constraint role lama SEBELUM migrasi data
+--    (constraint lama hanya izinkan 'pegawai','admin')
+-- ============================================
+ALTER TABLE pegawai DROP CONSTRAINT IF EXISTS pegawai_role_check;
+
+-- ============================================
+-- 5. Migrasi data existing
 -- ============================================
 
 -- Set username dari NIP untuk pegawai existing
 UPDATE pegawai SET username = nip WHERE username IS NULL;
 
--- Set user_type untuk pegawai existing
-UPDATE pegawai SET user_type = 'pegawai_gerai' WHERE role = 'pegawai' OR role IS NULL;
+-- Set role + user_type untuk pegawai existing
+-- (role lama 'pegawai' tidak valid di constraint baru, harus jadi 'pegawai_gerai')
+UPDATE pegawai SET role = 'pegawai_gerai', user_type = 'pegawai_gerai' WHERE role = 'pegawai' OR role IS NULL;
 
 -- Upgrade admin existing ke superadmin
 UPDATE pegawai SET role = 'superadmin', user_type = 'superadmin' WHERE role = 'admin';
 
 -- ============================================
--- 5. Set constraints setelah migrasi
+-- 6. Set constraints setelah migrasi
 -- ============================================
 
 -- Buat username NOT NULL dan UNIQUE setelah data diisi
@@ -79,8 +86,7 @@ BEGIN
   END IF;
 END $$;
 
--- Drop constraint role lama dan buat yang baru
-ALTER TABLE pegawai DROP CONSTRAINT IF EXISTS pegawai_role_check;
+-- Buat constraint role baru (lama sudah di-drop di step 4)
 ALTER TABLE pegawai ADD CONSTRAINT pegawai_role_check
   CHECK (role IN ('pegawai_gerai', 'satpam', 'cs', 'admin', 'superadmin'));
 

@@ -17,9 +17,7 @@ export default function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      if (user?.role === 'superadmin') {
-        router.push('/superadmin');
-      } else if (user?.role === 'admin') {
+      if (user?.role === 'superadmin' || user?.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/presensi');

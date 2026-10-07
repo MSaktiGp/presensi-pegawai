@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database';
 import { CONFIG } from '../config/constants';
-import { sendSuccess, sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 /** Get today's date string (YYYY-MM-DD) in WIB timezone. */
@@ -24,7 +23,6 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
         p.id as pegawai_id,
         p.nama,
         p.username,
-        p.nip,
         p.departemen,
         p.user_type,
         p.sub_type,
@@ -71,7 +69,6 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
       pegawai_id: row.pegawai_id,
       nama: row.nama,
       username: row.username,
-      nip: row.nip,
       departemen: row.departemen,
       user_type: row.user_type,
       sub_type: row.sub_type,
@@ -113,7 +110,7 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
     const terlambatCount = report.filter((r: any) => r.checkin?.status === 'late').length;
     const sudahPulangCount = report.filter((r: any) => r.checkout !== null).length;
 
-    sendSuccess(res, {
+    res.json({ success: true, message: "Success", data: {
       date: reportDate,
       summary: {
         total_pegawai: totalPegawai,
@@ -128,10 +125,10 @@ export const getAttendanceReport = async (req: Request, res: Response): Promise<
         cs: summaryByType('cs'),
       },
       report,
-    });
+    } });
   } catch (error) {
     logger.error('Get attendance report error', { error });
-    sendError(res, 'Gagal mengambil laporan presensi.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil laporan presensi.' });
   }
 };
 
@@ -209,15 +206,55 @@ export const getMonthlyChart = async (req: Request, res: Response): Promise<void
       });
     }
 
-    sendSuccess(res, {
+    // Get stats by type for the new charts
+    const statsResult = await query(
+      `SELECT 
+        p.user_type,
+        p.nama as person_name,
+        g.nama_gerai as gerai_name,
+        COUNT(CASE WHEN a.checkin_status IS NOT NULL THEN 1 END) as hadir_count
+       FROM pegawai p
+       LEFT JOIN attendance a ON a.pegawai_id = p.id 
+         AND EXTRACT(YEAR FROM a.date) = $1 
+         AND EXTRACT(MONTH FROM a.date) = $2
+       LEFT JOIN gerai g ON p.gerai_id = g.id
+       WHERE p.is_active = TRUE AND p.role NOT IN ('admin', 'superadmin')
+       GROUP BY p.user_type, p.id, p.nama, g.nama_gerai`,
+      [targetYear, targetMonth]
+    );
+
+    const stats_by_type = {
+      pegawai_gerai: [] as { label: string; hadir: number }[],
+      satpam: [] as { label: string; hadir: number }[],
+      cs: [] as { label: string; hadir: number }[]
+    };
+
+    const geraiMap = new Map<string, number>();
+
+    for (const row of statsResult.rows) {
+      const hadir = parseInt(row.hadir_count);
+      if (row.user_type === 'pegawai_gerai') {
+        const label = row.gerai_name || 'Tanpa Gerai';
+        geraiMap.set(label, (geraiMap.get(label) || 0) + hadir);
+      } else if (row.user_type === 'satpam') {
+        stats_by_type.satpam.push({ label: row.person_name.split(' ')[0], hadir });
+      } else if (row.user_type === 'cs') {
+        stats_by_type.cs.push({ label: row.person_name.split(' ')[0], hadir });
+      }
+    }
+
+    stats_by_type.pegawai_gerai = Array.from(geraiMap.entries()).map(([label, hadir]) => ({ label, hadir }));
+
+    res.json({ success: true, message: "Success", data: {
       month: targetMonth,
       year: targetYear,
       total_pegawai: totalPegawai,
       chart: chartData,
-    });
+      stats_by_type,
+    } });
   } catch (error) {
     logger.error('Monthly chart error', { error });
-    sendError(res, 'Gagal mengambil data grafik bulanan.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data grafik bulanan.' });
   }
 };
 
@@ -232,7 +269,6 @@ export const getAttemptLogs = async (req: Request, res: Response): Promise<void>
         al.pegawai_id,
         p.nama,
         p.username,
-        p.nip,
         p.user_type,
         al.attempt_time,
         al.attempt_type,
@@ -256,13 +292,13 @@ export const getAttemptLogs = async (req: Request, res: Response): Promise<void>
 
     const result = await query(sql, params);
 
-    sendSuccess(res, {
+    res.json({ success: true, message: "Success", data: {
       date: reportDate,
       total: result.rows.length,
       logs: result.rows,
-    });
+    } });
   } catch (error) {
     logger.error('Get attempt logs error', { error });
-    sendError(res, 'Gagal mengambil log presensi.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil log presensi.' });
   }
 };

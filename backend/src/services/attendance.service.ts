@@ -47,6 +47,7 @@ export interface ShiftInfo {
   jam_keluar: string;
   is_cross_midnight: boolean;
   late_threshold_minutes: number;
+  allowed_days: string;
 }
 
 export interface AttendanceResult {
@@ -63,7 +64,7 @@ export interface AttendanceResult {
 const getActiveShift = async (pegawaiId: number): Promise<ShiftInfo | null> => {
   const result = await query(
     `SELECT sc.id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
-            sc.is_cross_midnight, sc.late_threshold_minutes
+            sc.is_cross_midnight, sc.late_threshold_minutes, sc.allowed_days
      FROM pegawai_shift_assignment psa
      JOIN shift_config sc ON psa.shift_config_id = sc.id
      WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
@@ -82,6 +83,7 @@ const getActiveShift = async (pegawaiId: number): Promise<ShiftInfo | null> => {
     jam_keluar: row.jam_keluar,
     is_cross_midnight: row.is_cross_midnight,
     late_threshold_minutes: row.late_threshold_minutes,
+    allowed_days: row.allowed_days || '0,1,2,3,4,5,6',
   };
 };
 
@@ -134,8 +136,60 @@ const isWithinWorkingHours = (
   type: 'checkin' | 'checkout',
   shift: ShiftInfo | null
 ): { allowed: boolean; message: string } => {
-  // Checkin has no time restriction
+  // Checkin validation
   if (type === 'checkin') {
+    const wib = getWIBParts();
+    const currentTotalMinutes = wib.hour * 60 + wib.minute;
+
+    if (!shift) {
+      // Legacy behavior
+      const defaultCheckinMinutes = CONFIG.DEFAULT_CHECKIN_HOUR * 60 + CONFIG.DEFAULT_CHECKIN_MINUTE;
+      const allowedStartMinutes = defaultCheckinMinutes - CONFIG.CHECKIN_EARLY_MINUTES;
+      if (currentTotalMinutes < allowedStartMinutes) {
+        const h = Math.floor(allowedStartMinutes / 60);
+        const m = allowedStartMinutes % 60;
+        const formattedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+        return {
+          allowed: false,
+          message: `Presensi masuk tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
+        };
+      }
+      return { allowed: true, message: '' };
+    }
+
+    const checkinMinutes = parseTimeToMinutes(shift.jam_masuk);
+    let allowedStartMinutes = checkinMinutes - CONFIG.CHECKIN_EARLY_MINUTES;
+
+    if (shift.is_cross_midnight) {
+      if (allowedStartMinutes < 0) {
+        allowedStartMinutes += 24 * 60;
+      }
+      // For cross-midnight, early is before allowedStart AND after some midday threshold (e.g. 12:00 PM)
+      // to not accidentally block people checking in late at 01:00 AM.
+      if (currentTotalMinutes < allowedStartMinutes && currentTotalMinutes > 12 * 60) {
+        const h = Math.floor(allowedStartMinutes / 60);
+        const m = allowedStartMinutes % 60;
+        const formattedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+        return {
+          allowed: false,
+          message: `Shift ${shift.nama_shift}: presensi masuk tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
+        };
+      }
+    } else {
+      if (currentTotalMinutes < allowedStartMinutes) {
+        const h = Math.floor(allowedStartMinutes / 60);
+        const m = allowedStartMinutes % 60;
+        const formattedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+        return {
+          allowed: false,
+          message: `Shift ${shift.nama_shift}: presensi masuk tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
+        };
+      }
+    }
+    
     return { allowed: true, message: '' };
   }
 
@@ -297,6 +351,27 @@ export const processAttendance = async (
   // 0. Get active shift for this pegawai
   const shift = await getActiveShift(pegawaiId);
 
+  // 0.5 Check allowed days for checkin
+  if (type === 'checkin' && shift && shift.allowed_days) {
+    const currentDay = now.getDay().toString();
+    const allowedDaysArr = shift.allowed_days.split(',');
+    if (!allowedDaysArr.includes(currentDay)) {
+      const { distance } = isWithinRadius(latitude, longitude);
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const allowedNames = allowedDaysArr.map(d => dayNames[parseInt(d)]).join(', ');
+      const message = `Shift ${shift.nama_shift} hanya tersedia pada hari: ${allowedNames}.`;
+      await logAttempt(pegawaiId, type, latitude, longitude, distance, 'outside_hours', message);
+      
+      return {
+        success: false,
+        message,
+        distance_from_office: distance,
+        server_timestamp: now.toISOString(),
+        status: 'outside_hours',
+      };
+    }
+  }
+
   // 1. Validate working hours (shift-aware)
   const hoursCheck = isWithinWorkingHours(type, shift);
   if (!hoursCheck.allowed) {
@@ -447,4 +522,8 @@ export const getTodayStatus = async (pegawaiId: number) => {
         }
       : null,
   };
+};
+export const getAttendanceHistory = async (pegawaiId: number, limit: number = 5) => {
+  const result = await query('SELECT date, checkin_time, checkout_time FROM attendance WHERE pegawai_id = $1 ORDER BY date DESC LIMIT $2', [pegawaiId, limit]);
+  return result.rows;
 };

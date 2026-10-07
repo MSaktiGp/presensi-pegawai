@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { getGreeting } from '@/lib/utils';
+import { navFor } from '@/lib/permissions';
+import { HiArrowRightOnRectangle } from 'react-icons/hi2';
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -11,14 +13,24 @@ export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  if (!isAuthenticated || pathname === '/') return null;
+  const hiddenPaths = ['/presensi', '/pilih-jadwal', '/riwayat-presensi'];
+  if (!isAuthenticated || pathname === '/' || hiddenPaths.includes(pathname)) return null;
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const navItems = navFor(user?.role);
+  const hasNav = navItems.length > 0;
+
+  const go = (href: string) => {
+    router.push(href);
+    setMenuOpen(false);
+  };
+
+  const itemClass = (href: string) =>
+    pathname === href ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10';
 
   return (
     <header className="w-full bg-primary-dark text-white shadow-lg relative overflow-hidden">
@@ -30,50 +42,31 @@ export default function Header() {
         }} />
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+      <div className="relative max-w-6xl mx-auto px-4 my-2 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           {/* Left - Branding */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
-              src="/LOGO-DPMPTSP-GOLD.png"
-              alt="Logo MPP DPMPTSP"
-              className="w-10 h-10 sm:w-14 sm:h-14 object-contain flex-shrink-0"
+              src="/LOGO-MPP-PUTIH.png"
+              alt="Logo MPP"
+              className="w-24 h-10 sm:w-24 sm:h-14 object-contain flex-shrink-0"
             />
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-xl font-bold tracking-tight leading-tight">
-                Sistem Presensi
-              </h1>
-              <p className="text-[10px] sm:text-sm text-white/70 leading-tight">
-                DPMPTSP Kota Jambi
-              </p>
-            </div>
           </div>
 
           {/* Right - User + Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop Navigation */}
-            {isAdmin && (
-              <nav className="hidden sm:flex items-center gap-1 mr-2">
-                <button
-                  onClick={() => router.push('/presensi')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    pathname === '/presensi' 
-                      ? 'bg-white/20 text-white' 
-                      : 'text-white/70 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  Presensi
-                </button>
-                <button
-                  onClick={() => router.push('/admin')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    pathname === '/admin' 
-                      ? 'bg-white/20 text-white' 
-                      : 'text-white/70 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  Dashboard
-                </button>
+            {hasNav && (
+              <nav className="hidden lg:flex items-center gap-1 mr-2">
+                {navItems.map((item) => (
+                  <button
+                    key={item.href}
+                    onClick={() => go(item.href)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${itemClass(item.href)}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </nav>
             )}
 
@@ -83,20 +76,25 @@ export default function Header() {
               <span className="text-xs text-white/60">{user?.departemen}</span>
             </div>
 
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="btn bg-accent-gold text-primary-dark px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg hover:brightness-110 active:scale-95 transition-all"
-            >
-              Logout
-            </button>
+            {/* Logout button (hidden on mobile if hasNav) */}
+            <div className={hasNav ? 'hidden lg:flex' : 'flex'}>
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                aria-label="Logout"
+                className="btn bg-accent-gold text-primary-light text-xs sm:text-sm font-semibold rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <HiArrowRightOnRectangle size={24} />
+              </button>
+            </div>
 
-            {/* Hamburger menu (mobile, admin only) */}
-            {isAdmin && (
+            {/* Hamburger menu (admin & superadmin) */}
+            {hasNav && (
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="sm:hidden flex flex-col gap-1 p-2 rounded-lg hover:bg-white/10 transition-colors"
+                className="lg:hidden flex flex-col gap-1 min-w-[44px] min-h-[44px] items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
                 aria-label="Menu navigasi"
+                aria-expanded={menuOpen}
               >
                 <span className={`block w-5 h-0.5 bg-white transition-transform duration-200 ${menuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
                 <span className={`block w-5 h-0.5 bg-white transition-opacity duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
@@ -106,34 +104,29 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile dropdown menu (admin only) */}
-        {isAdmin && menuOpen && (
-          <div className="sm:hidden mt-3 pt-3 border-t border-white/15 animate-fade-in">
+        {/* Mobile dropdown menu */}
+        {hasNav && menuOpen && (
+          <div className="lg:hidden mt-3 pt-3 border-t border-white/15 animate-fade-in">
             {/* User info mobile */}
-            <div className="mb-3 px-1">
+            {/* <div className="mb-3 px-1 md:hidden">
               <span className="text-sm font-medium">{getGreeting()}, {user?.nama}</span>
               <span className="block text-xs text-white/60">{user?.departemen}</span>
-            </div>
+            </div> */}
             <nav className="flex flex-col gap-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => go(item.href)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${itemClass(item.href)}`}
+                >
+                  {item.label}
+                </button>
+              ))}
               <button
-                onClick={() => { router.push('/presensi'); setMenuOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  pathname === '/presensi' 
-                    ? 'bg-white/20 text-white' 
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-2.5 mt-1 rounded-lg text-sm font-medium transition-all text-white/70 hover:text-white hover:bg-white/10"
               >
-                📋 Presensi
-              </button>
-              <button
-                onClick={() => { router.push('/admin'); setMenuOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  pathname === '/admin' 
-                    ? 'bg-white/20 text-white' 
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                📊 Dashboard Admin
+                Logout
               </button>
             </nav>
           </div>

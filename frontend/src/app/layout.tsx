@@ -11,12 +11,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Sistem Presensi - DPMPTSP Kota Jambi",
-  description: "Sistem Presensi Kehadiran Pegawai DPMPTSP Kota Jambi. Presensi masuk dan keluar dengan validasi geolocation dan foto.",
-  keywords: ["presensi", "kehadiran", "DPMPTSP", "Kota Jambi", "attendance"],
+  title: "Sistem Presensi - MPP Kota Jambi",
+  description: "Sistem Presensi Kehadiran Pegawai MPP Kota Jambi. Presensi masuk dan keluar dengan validasi geolocation dan foto.",
+  keywords: ["presensi", "kehadiran", "MPP", "Kota Jambi", "attendance"],
   icons: {
-    icon: "/LOGO-DPMPTSP-GOLD.png",
-    apple: "/LOGO-DPMPTSP-GOLD.png",
+    icon: "/logo-mpp.png",
+    apple: "/logo-mpp.png",
   },
 };
 

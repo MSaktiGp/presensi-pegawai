@@ -1,12 +1,11 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.middleware';
 import { ADMIN_ROLES } from '../config/constants';
-import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 export const adminAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
-    sendError(res, 'Autentikasi diperlukan.', 401);
+    res.status(401).json({ success: false, message: 'Autentikasi diperlukan.' });
     return;
   }
 
@@ -16,7 +15,7 @@ export const adminAuthMiddleware = (req: AuthRequest, res: Response, next: NextF
       username: req.user.username,
       role: req.user.role,
     });
-    sendError(res, 'Anda tidak memiliki akses ke halaman ini.', 403);
+    res.status(403).json({ success: false, message: 'Anda tidak memiliki akses ke halaman ini.' });
     return;
   }
 

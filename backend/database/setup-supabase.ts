@@ -35,10 +35,10 @@ async function runMigration() {
     console.log('✅ Data pegawai berhasil di-seed!\n');
 
     // Verify
-    const result = await client.query('SELECT id, nama, nip, departemen, role FROM pegawai ORDER BY id');
+    const result = await client.query('SELECT id, nama, departemen, role FROM pegawai ORDER BY id');
     console.log(`📋 Total pegawai: ${result.rows.length}`);
     result.rows.forEach((row: any) => {
-      console.log(`   ${row.id}. ${row.nama} (${row.nip}) - ${row.departemen} [${row.role}]`);
+      console.log(`   ${row.id}. ${row.nama} - ${row.departemen} [${row.role}]`);
     });
 
     console.log('\n🎉 Supabase database siap digunakan!');

@@ -1,81 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGet } from '@/lib/api';
-import { formatTime, formatDate, formatDateAPI } from '@/lib/utils';
-import StatusBadge from '@/components/StatusBadge';
-import { HiChartBar, HiClipboardDocumentList, HiXMark } from 'react-icons/hi2';
+import { ADMIN_ROLES, useRoleGuard } from '@/lib/permissions';
+import { HiOutlineCalendar, HiOutlineChartBar } from 'react-icons/hi2';
 
-interface AttendanceRecord {
-  pegawai_id: number;
-  nama: string;
-  nip: string;
-  departemen: string;
-  checkin: { time: string; status: string; distance: number; photo: string } | null;
-  checkout: { time: string; status: string; distance: number; photo: string } | null;
-}
-
-interface ReportData {
-  date: string;
-  summary: {
-    total_pegawai: number;
-    hadir: number;
-    tidak_hadir: number;
-    terlambat: number;
-    sudah_pulang: number;
+interface ChartItem { label: string; hadir: number }
+interface ChartData {
+  month: number;
+  year: number;
+  total_pegawai: number;
+  stats_by_type?: {
+    pegawai_gerai: ChartItem[];
+    satpam: ChartItem[];
+    cs: ChartItem[];
   };
-  report: AttendanceRecord[];
 }
 
-export default function AdminPage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+export default function DashboardPage() {
+  const allowed = useRoleGuard(ADMIN_ROLES);
+  const { user } = useAuth();
   const router = useRouter();
 
-  const [selectedDate, setSelectedDate] = useState<string>(formatDateAPI(new Date()));
-  const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [filterDept, setFilterDept] = useState<string>('');
-  const [searchName, setSearchName] = useState<string>('');
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [chart, setChart] = useState<ChartData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; nama: string; type: string } | null>(null);
 
-  const isAdminRole = user?.role === 'admin' || user?.role === 'superadmin';
-
-  // Redirect if not admin/superadmin
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || (user && !isAdminRole))) {
-      router.push(isAuthenticated ? '/presensi' : '/');
-    }
-  }, [isAuthenticated, authLoading, user, isAdminRole, router]);
-
-  // Fetch report data
-  useEffect(() => {
-    if (!isAuthenticated || !isAdminRole) return;
-
-    const fetchReport = async () => {
-      setIsLoading(true);
-      const response = await apiGet(`/admin/attendance-report?date=${selectedDate}`);
-      if (response.success && response.data) {
-        setReportData(response.data);
-      }
+    if (!allowed) return;
+    setIsLoading(true);
+    api(`/admin/monthly-chart?month=${month}&year=${year}`).then((r) => {
+      if (r.success) setChart(r.data);
       setIsLoading(false);
-    };
+    });
+  }, [allowed, month, year]);
 
-    fetchReport();
-  }, [selectedDate, isAuthenticated, isAdminRole]);
-
-  // Filter records
-  const filteredRecords = reportData?.report.filter((record) => {
-    const matchDept = !filterDept || record.departemen === filterDept;
-    const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-    return matchDept && matchName;
-  }) || [];
-
-  // Get unique departments
-  const departments = [...new Set(reportData?.report.map((r) => r.departemen) || [])];
-
-  if (authLoading || !isAuthenticated) {
+  if (!allowed) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="spinner !w-10 !h-10" />
@@ -83,247 +47,172 @@ export default function AdminPage() {
     );
   }
 
+  const roleLabel = user?.role === 'superadmin' ? 'Superadmin SIPP' : 'Admin SIPP';
+
   return (
-    <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Page Header */}
-        <div className="animate-fade-in">
-          <h2 className="text-2xl font-bold text-[var(--primary-dark)]">
-            Dashboard Admin
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Laporan presensi kehadiran pegawai
-          </p>
+    <div className="min-h-screen bg-[var(--bg-gray-light)] pb-12">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 space-y-6">
+        
+        {/* Header Section */}
+        <div className="animate-fade-in space-y-1">
+          <h1 className="text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">Selamat Datang!</h1>
+          <h2 className="text-xl font-medium text-[var(--text-primary)]">{roleLabel}</h2>
+          <div className="flex items-center gap-1.5 text-sm text-[#3b82f6] font-medium pt-1">
+            <HiOutlineCalendar className="w-4 h-4" />
+            <span>{now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          </div>
         </div>
 
-        {/* Summary Cards */}
-        {reportData && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 animate-slide-up">
-            <div className="card p-4 text-center">
-              <p className="text-3xl font-bold text-[var(--primary-dark)]">
-                {reportData.summary.total_pegawai}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Total Pegawai</p>
+        {/* Total Card */}
+        <div className="card px-5 py-3 flex items-center justify-between border border-[var(--border-light)] shadow-sm animate-slide-up">
+          <div className="flex flex-col">
+            <span className="text-lg font-bold text-[var(--text-primary)]">Total Petugas</span>
+            <span className="text-sm text-[var(--text-secondary)]">MPP KOTA JAMBI</span>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="w-[1px] h-10 bg-[var(--border-light)]"></div>
+            <div className="flex flex-col items-center justify-center min-w-[3rem]">
+              <span className="text-4xl font-bold text-[#3b82f6] leading-none">
+                {chart?.total_pegawai ?? 0}
+              </span>
+              <span className="text-xs font-medium text-[#3b82f6] mt-1">Orang</span>
             </div>
-            <div className="card p-4 text-center border-l-4 border-l-[var(--success-green)]">
-              <p className="text-3xl font-bold text-[var(--success-green)]">
-                {reportData.summary.hadir}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Hadir</p>
-            </div>
-            <div className="card p-4 text-center border-l-4 border-l-[var(--accent-red)]">
-              <p className="text-3xl font-bold text-[var(--accent-red)]">
-                {reportData.summary.tidak_hadir}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Tidak Hadir</p>
-            </div>
-            <div className="card p-4 text-center border-l-4 border-l-[var(--warning-orange)]">
-              <p className="text-3xl font-bold text-[var(--warning-orange)]">
-                {reportData.summary.terlambat}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Terlambat</p>
-            </div>
+          </div>
+        </div>
+
+        {/* Charts Header */}
+        <div className="flex items-center justify-between pt-2 animate-slide-up">
+          <div className="flex items-center gap-2">
+            <HiOutlineChartBar className="w-6 h-6 text-[#3b82f6]" />
+            <h3 className="font-bold text-[var(--text-primary)] shrink-0">Grafik Kehadiran</h3>
+          </div>
+          
+          <select 
+            aria-label="Bulan dan Tahun" 
+            value={`${year}-${month}`} 
+            onChange={(e) => {
+              const [y, m] = e.target.value.split('-');
+              setYear(+y);
+              setMonth(+m);
+            }} 
+            className="input text-xs !py-1.5 !px-2 ms-3 min-h-0 bg-white border border-[var(--border-light)] rounded-lg shadow-sm flex-1"
+          >
+            {Array.from({ length: 12 }, (_, i) => {
+              const m = i + 1;
+              const date = new Date(2000, i);
+              return (
+                <option key={m} value={`${year}-${m}`}>
+                  {date.toLocaleDateString('id-ID', { month: 'long' })} {year}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Charts Container */}
+        {isLoading ? (
+          <div className="flex justify-center py-12"><div className="spinner !w-8 !h-8" /></div>
+        ) : (
+          <div className="space-y-4">
+            <BarChart title="Petugas Gerai" data={chart?.stats_by_type?.pegawai_gerai || []} />
+            <BarChart title="Satpam" data={chart?.stats_by_type?.satpam || []} />
+            <BarChart title="Cleaning Service" data={chart?.stats_by_type?.cs || []} />
           </div>
         )}
 
-        {/* Filters */}
-        <div className="card p-4 animate-slide-up">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Date picker */}
-            <div className="flex-1">
-              <label htmlFor="date-filter" className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
-                Tanggal
-              </label>
-              <input
-                id="date-filter"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="input text-sm"
-              />
-            </div>
-
-            {/* Department filter */}
-            <div className="flex-1">
-              <label htmlFor="dept-filter" className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
-                Departemen
-              </label>
-              <select
-                id="dept-filter"
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
-                className="input text-sm"
-              >
-                <option value="">Semua Departemen</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Name search */}
-            <div className="flex-1">
-              <label htmlFor="name-search" className="block text-xs font-semibold text-[var(--text-muted)] mb-1">
-                Cari Nama
-              </label>
-              <input
-                id="name-search"
-                type="text"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                placeholder="Cari pegawai..."
-                className="input text-sm"
-              />
-            </div>
+        {/* Admin Navigation (Optional, keeping it below for utility) */}
+        {user?.role === 'admin' && (
+          <div className="pt-4 text-center">
+            <button onClick={() => router.push('/admin/rekap')} className="text-sm font-medium text-[#3b82f6] hover:underline">
+              Lihat Rekap Lengkap →
+            </button>
           </div>
+        )}
+        
+        {user?.role === 'superadmin' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-4">
+            <button onClick={() => router.push('/superadmin/petugas')} className="card p-4 text-left hover:border-[var(--primary-dark)] transition-colors">
+              <p className="font-semibold text-[var(--primary-dark)]">Manajemen Petugas →</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Tambah, ubah, nonaktifkan akun petugas</p>
+            </button>
+            <button onClick={() => router.push('/superadmin/jadwal')} className="card p-4 text-left hover:border-[var(--primary-dark)] transition-colors">
+              <p className="font-semibold text-[var(--primary-dark)]">Kelola Jadwal →</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Atur shift dan penugasan jadwal petugas</p>
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+function BarChart({ title, data }: { title: string; data: ChartItem[] }) {
+  if (!data || data.length === 0) return null;
+  
+  const maxVal = Math.max(10, ...data.map(d => d.hadir));
+  const tickStep = Math.ceil(maxVal / 5);
+  const realMax = tickStep * 5;
+  const ticks = Array.from({length: 6}, (_, i) => realMax - (i * tickStep));
+
+  return (
+    <div className="card p-5 animate-slide-up shadow-sm border border-[var(--border-light)]">
+      <h3 className="font-bold text-[var(--text-primary)] mb-4">{title}</h3>
+      <div className="flex h-[180px] pl-4 relative">
+        
+        {/* Y Axis Label (Rotated) */}
+        <div className="absolute -left-6 top-1/2 -translate-y-1/2 -rotate-90 text-[8px] text-[var(--text-muted)] whitespace-nowrap tracking-wide">
+          Jumlah Hari Hadir
+        </div>
+        
+        {/* Y Axis Ticks */}
+        <div className="flex flex-col justify-between items-end pr-2 h-full text-[10px] text-[var(--text-primary)] font-medium">
+          {ticks.map((t, i) => <span key={i} className="leading-none">{t}</span>)}
         </div>
 
-        {/* Date display */}
-        <div className="text-sm text-[var(--text-secondary)] font-medium">
-          Menampilkan data: <span className="text-[var(--primary-dark)] font-bold">{formatDate(selectedDate + 'T00:00:00')}</span>
-          <span className="text-[var(--text-muted)] ml-2">
-            ({filteredRecords.length} pegawai)
-          </span>
-        </div>
+        {/* Chart Area */}
+        <div className="flex-1 relative flex items-end justify-around px-2 pb-[1px]">
+          
+          {/* Grid Lines */}
+          <div className="absolute inset-0 flex flex-col justify-between z-0 pointer-events-none">
+            {ticks.map((_, i) => (
+              <div key={i} className={`w-full border-t ${i === ticks.length - 1 ? 'border-[#3b82f6]' : 'border-[var(--border-light)]/50'}`} />
+            ))}
+            {/* Left border for chart area */}
+            <div className="absolute top-0 bottom-0 left-0 border-l border-[#3b82f6]" />
+          </div>
 
-        {/* Table */}
-        <div className="card overflow-hidden animate-slide-up">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center">
-                <div className="spinner !w-8 !h-8 mx-auto mb-3" />
-                <p className="text-sm text-[var(--text-muted)]">Memuat laporan...</p>
+          {/* Bars */}
+          {data.map((d, i) => {
+            const visualHadir = d.hadir;
+            return (
+              <div key={i} className="relative z-10 flex flex-col items-center flex-1 h-full justify-end group">
+                <div 
+                  className="w-full max-w-[20px] bg-[#1d70b8] group-hover:bg-[#115085] transition-colors rounded-none"
+                  style={{ height: `${(visualHadir / realMax) * 100}%` }}
+                  title={`${d.label}: ${d.hadir} hari`}
+                />
+                
+                {/* Tooltip */}
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded pointer-events-none transition-opacity whitespace-nowrap z-20">
+                  {d.hadir} hari
+                </div>
+                
+                {/* X Axis Label */}
+                <div className="absolute -bottom-[2.5rem] w-12 flex items-center justify-center">
+                  <span className="text-[9px] text-[var(--text-primary)] leading-tight text-center whitespace-normal break-words">
+                    {d.label.split(' ').map((word, j) => <span key={j} className="block">{word}</span>)}
+                  </span>
+                </div>
               </div>
-            </div>
-          ) : filteredRecords.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-[var(--text-secondary)] font-medium">Tidak ada data presensi</p>
-              <p className="text-sm text-[var(--text-muted)] mt-1">
-                {searchName || filterDept ? 'Coba ubah filter pencarian.' : 'Belum ada pegawai yang presensi pada tanggal ini.'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-primary-dark text-white">
-                    <th className="text-left py-3 px-4 font-semibold">Nama</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Departemen</th>
-                    <th className="text-center py-3 px-4 font-semibold">Masuk</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-center py-3 px-4 font-semibold">Foto Masuk</th>
-                    <th className="text-center py-3 px-4 font-semibold">Keluar</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-center py-3 px-4 font-semibold">Foto Keluar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.map((record, index) => (
-                    <tr
-                      key={record.pegawai_id || record.nip || index}
-                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'
-                        }`}
-                    >
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-[var(--text-primary)]">{record.nama}</p>
-                          <p className="text-xs text-[var(--text-muted)] sm:hidden">{record.departemen}</p>
-                          <p className="text-xs text-[var(--text-muted)] font-mono">{record.nip}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)]">
-                        {record.departemen}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono">
-                        {record.checkin ? formatTime(record.checkin.time) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <StatusBadge status={record.checkin?.status || null} />
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {record.checkin?.photo ? (
-                          <button
-                            onClick={() => setPreviewPhoto({ url: record.checkin!.photo, nama: record.nama, type: 'Masuk' })}
-                            className="inline-block group"
-                            title="Lihat foto masuk"
-                          >
-                            <img
-                              src={record.checkin.photo}
-                              alt={`Foto masuk ${record.nama}`}
-                              className="w-10 h-10 rounded-lg object-cover border-2 border-[var(--border-light)] group-hover:border-[var(--primary-dark)] transition-all group-hover:scale-110 cursor-pointer"
-                            />
-                          </button>
-                        ) : (
-                          <span className="text-[var(--text-muted)]">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center font-mono">
-                        {record.checkout ? formatTime(record.checkout.time) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <StatusBadge status={record.checkout?.status || null} />
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {record.checkout?.photo ? (
-                          <button
-                            onClick={() => setPreviewPhoto({ url: record.checkout!.photo, nama: record.nama, type: 'Keluar' })}
-                            className="inline-block group"
-                            title="Lihat foto keluar"
-                          >
-                            <img
-                              src={record.checkout.photo}
-                              alt={`Foto keluar ${record.nama}`}
-                              className="w-10 h-10 rounded-lg object-cover border-2 border-[var(--border-light)] group-hover:border-[var(--primary-dark)] transition-all group-hover:scale-110 cursor-pointer"
-                            />
-                          </button>
-                        ) : (
-                          <span className="text-[var(--text-muted)]">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
-
-      {/* Photo Preview Modal */}
-      {previewPhoto && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setPreviewPhoto(null)}
-        >
-          <div
-            className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-lg w-full animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-[var(--primary-dark)] text-white">
-              <div>
-                <p className="font-semibold text-sm">{previewPhoto.nama}</p>
-                <p className="text-xs text-white/70">Foto Presensi {previewPhoto.type}</p>
-              </div>
-              <button
-                onClick={() => setPreviewPhoto(null)}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
-              >
-                <HiXMark className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Photo */}
-            <div className="bg-black">
-              <img
-                src={previewPhoto.url}
-                alt={`Foto presensi ${previewPhoto.nama}`}
-                className="w-full max-h-[70vh] object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      
+      {/* Spacer for X axis labels */}
+      <div className="h-10"></div>
     </div>
   );
 }

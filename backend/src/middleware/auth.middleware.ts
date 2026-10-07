@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../config/constants';
-import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 export interface AuthUser {
@@ -13,8 +12,6 @@ export interface AuthUser {
   user_type: string;
   sub_type?: string;
   gerai_id?: number;
-  // Legacy field — kept for backward compat
-  nip?: string;
 }
 
 export interface AuthRequest extends Request {
@@ -26,7 +23,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      sendError(res, 'Token tidak ditemukan. Silakan login terlebih dahulu.', 401);
+      res.status(401).json({ success: false, message: 'Token tidak ditemukan. Silakan login terlebih dahulu.' });
       return;
     }
 
@@ -38,7 +35,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     next();
   } catch (error) {
     logger.warn('Invalid JWT token attempt', { error });
-    sendError(res, 'Token tidak valid atau sudah expired. Silakan login kembali.', 401);
+    res.status(401).json({ success: false, message: 'Token tidak valid atau sudah expired. Silakan login kembali.' });
     return;
   }
 };

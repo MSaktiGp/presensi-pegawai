@@ -20,7 +20,7 @@ export default function LoginPage() {
       if (user?.role === 'superadmin' || user?.role === 'admin') {
         router.push('/admin');
       } else {
-        router.push('/presensi');
+        router.push('/beranda');
       }
     }
   }, [isAuthenticated, authLoading, user, router]);
@@ -52,9 +52,18 @@ export default function LoginPage() {
   if (isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[var(--primary-dark)] via-[#1a6f96] to-[var(--primary-medium)] relative overflow-hidden">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gray-900">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/MPP1.jpg)' }}
+      />
+
+      {/* Blue Overlay (Primary color, 70% opacity) */}
+      <div className="absolute inset-0 z-0 bg-[var(--primary-dark)] opacity-70" />
+
       {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
         <div className="absolute -bottom-48 -left-48 w-[500px] h-[500px] bg-[var(--accent-gold)]/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full blur-3xl" />
@@ -70,38 +79,42 @@ export default function LoginPage() {
         <div className="w-full max-w-md animate-slide-up">
           {/* Branding Header */}
           <div className="text-center mb-8">
-            <div className="w-24 h-24 mx-auto mb-4 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/20 p-3">
+            <div className="w-40 h-24 mx-auto mb-4 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white/20 p-3">
               <img
-                src="/LOGO-DPMPTSP-GOLD.png"
-                alt="Logo MPP DPMPTSP Kota Jambi"
+                src="/logo-mpp.png"
+                alt="Logo MPP"
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">
-              Sistem Presensi
+            <h1 className="text-3xl font-bold text-white tracking-tight text-balance">
+              SIPP MPP
             </h1>
-            <p className="text-white/70 mt-2 text-base">
-              DPMPTSP Kota Jambi
+            <div className="w-40 h-[2px] bg-[var(--accent-gold)] mx-auto rounded-full mt-1" />
+            <p className="text-white font-light mt-2 text-base text-pretty">
+              Sistem Informasi Presensi Petugas
             </p>
-            <div className="w-12 h-1 bg-[var(--accent-gold)] mx-auto mt-3 rounded-full" />
+            <p className="text-white font-semibold text-pretty text-base">
+              MAL PELAYANAN PUBLIK KOTA JAMBI
+            </p>
           </div>
 
           {/* Login Card */}
           <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/30">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[var(--primary-dark)]">
-                Masuk ke Akun Anda
+                Masuk
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
-                Gunakan username dan password untuk login
+                Gunakan username dan password
               </p>
             </div>
 
             {/* Error Message */}
             {error && (
               <div className="mb-4 p-3 bg-accent-red-light border border-accent-red/20 rounded-xl animate-fade-in" id="login-error">
-                <p className="text-sm text-accent-red font-medium flex items-center gap-2">
-                  <span><HiExclamationTriangle className="inline" /></span> {error}
+                <p className="text-sm text-accent-red font-medium flex items-center gap-2 text-pretty">
+                  <HiExclamationTriangle className="shrink-0" size={18} />
+                  <span>{error}</span>
                 </p>
               </div>
             )}
@@ -110,7 +123,7 @@ export default function LoginPage() {
               {/* Username */}
               <div>
                 <label htmlFor="username" className="block text-sm font-semibold text-[var(--text-secondary)] mb-1.5">
-                  Username
+                  Username / Nama Akun
                 </label>
                 <div className="relative">
                   <input
@@ -118,8 +131,8 @@ export default function LoginPage() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Contoh: 40B, Budi Santoso"
-                    className="input pl-11"
+                    placeholder="Masukkan username"
+                    className="input"
                     required
                     autoComplete="username"
                     autoFocus
@@ -139,16 +152,17 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="input pl-11 pr-12"
+                    className="input pr-12"
                     required
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors text-sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                    aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                   >
-                    {showPassword ? <HiEyeSlash /> : <HiEye />}
+                    {showPassword ? <HiEyeSlash size={20} /> : <HiEye size={20} />}
                   </button>
                 </div>
               </div>

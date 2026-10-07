@@ -4,7 +4,7 @@ import { superAdminAuthMiddleware } from '../middleware/superAdminAuth.middlewar
 import {
   listGerai, createGerai, updateGerai, toggleGerai,
   listPegawai, createPegawai, updatePegawai, togglePegawai, resetPassword,
-  listShifts, assignShift,
+  listShifts, createShift, updateShift, deleteShift, assignShift,
   getDashboardStats,
 } from '../controllers/superadmin.controller';
 
@@ -32,6 +32,9 @@ router.patch('/pegawai/:id/reset-password', resetPassword);
 
 // Shift management
 router.get('/shifts', listShifts);
+router.post('/shifts', createShift);
 router.post('/shifts/assign', assignShift);
+router.put('/shifts/:id', updateShift);
+router.delete('/shifts/:id', deleteShift);
 
 export default router;

@@ -28,6 +28,27 @@ const getToken = (): string | null => {
 };
 
 /**
+ * Minimalist global toast for unhandled network/5xx errors (Ponytail mode)
+ */
+let toastContainer: HTMLDivElement | null = null;
+const showGlobalError = (msg: string) => {
+  if (typeof window === 'undefined') return;
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.className = 'fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none';
+    document.body.appendChild(toastContainer);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'bg-[var(--accent-red,#ef4444)] text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 pointer-events-auto';
+  toast.textContent = msg;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+};
+
+/**
  * Fetch wrapper with JWT auto-attach and error handling.
  */
 export const api = async <T = any>(
@@ -53,7 +74,18 @@ export const api = async <T = any>(
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const data: ApiResponse<T> = await response.json();
+    let data: ApiResponse<T>;
+    try {
+      data = await response.json();
+    } catch (e) {
+      const msg = `HTTP ${response.status}: Terjadi kesalahan server.`;
+      showGlobalError(msg);
+      return { success: false, message: msg };
+    }
+
+    if (response.status >= 500) {
+      showGlobalError(data.message || 'Terjadi kesalahan server internal.');
+    }
 
     // Handle 401 - redirect to login
     if (response.status === 401) {
@@ -67,14 +99,11 @@ export const api = async <T = any>(
     return data;
   } catch (error) {
     console.error('API Error:', error);
+    const msg = 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+    showGlobalError(msg);
     return {
       success: false,
-      message: 'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      message: msg,
     };
   }
 };
-
-// Convenience methods
-export const apiGet = <T = any>(endpoint: string) => api<T>(endpoint);
-export const apiPost = <T = any>(endpoint: string, body: any) => 
-  api<T>(endpoint, { method: 'POST', body });

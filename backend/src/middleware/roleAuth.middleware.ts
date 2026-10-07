@@ -1,7 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.middleware';
 import { Role } from '../config/constants';
-import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 /**
@@ -11,7 +10,7 @@ import { logger } from '../utils/logger';
 export const roleAuth = (allowedRoles: Role[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      sendError(res, 'Autentikasi diperlukan.', 401);
+      res.status(401).json({ success: false, message: 'Autentikasi diperlukan.' });
       return;
     }
 
@@ -22,7 +21,7 @@ export const roleAuth = (allowedRoles: Role[]) => {
         role: req.user.role,
         requiredRoles: allowedRoles,
       });
-      sendError(res, 'Anda tidak memiliki akses ke fitur ini.', 403);
+      res.status(403).json({ success: false, message: 'Anda tidak memiliki akses ke fitur ini.' });
       return;
     }
 

@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGet, apiPost } from '@/lib/api';
+import { api } from '@/lib/api';
 import { GeoPosition } from '@/lib/geolocation';
-import { formatTime, formatDate, getCurrentPeriod, getGreeting } from '@/lib/utils';
+import { getCurrentPeriod, getGreeting } from '@/lib/utils';
 import GeolocationStatus from '@/components/GeolocationStatus';
 import CameraCapture from '@/components/CameraCapture';
 import StatusBadge from '@/components/StatusBadge';
-import { HiHandRaised, HiCheckCircle, HiXCircle, HiArrowRightOnRectangle, HiSparkles, HiClock, HiChartBar } from 'react-icons/hi2';
+import SubHeader from '@/components/SubHeader';
+import { HiHandRaised, HiCheckCircle, HiXCircle, HiArrowRightOnRectangle, HiSparkles, HiClock, HiChevronLeft, HiCalendar } from 'react-icons/hi2';
+import { useRoleGuard, PETUGAS_ROLES } from '@/lib/permissions';
 
 interface OfficeLocation {
   latitude: number;
@@ -22,9 +24,12 @@ interface TodayStatus {
   checkout: { time: string; status: string; distance: number } | null;
 }
 
-export default function PresensiPage() {
+function PresensiPageContent() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isCheckin = searchParams.get('type') !== 'checkout';
+  const isAuthorized = useRoleGuard(PETUGAS_ROLES);
 
   const [officeLocation, setOfficeLocation] = useState<OfficeLocation | null>(null);
   const [todayStatus, setTodayStatus] = useState<TodayStatus>({ checkin: null, checkout: null });
@@ -39,22 +44,15 @@ export default function PresensiPage() {
   } | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/');
-    }
-  }, [isAuthenticated, authLoading, router]);
-
   // Fetch user data and today status
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isAuthorized) return;
 
     const fetchData = async () => {
       setPageLoading(true);
       const [userData, statusData] = await Promise.all([
-        apiGet('/attendance/user-data'),
-        apiGet('/attendance/today-status'),
+        api('/attendance/user-data', { method: 'GET' }),
+        api('/attendance/today-status', { method: 'GET' }),
       ]);
 
       if (userData.success && userData.data) {
@@ -88,10 +86,13 @@ export default function PresensiPage() {
     setIsSubmitting(true);
     setSubmitResult(null);
 
-    const response = await apiPost(`/attendance/${type}`, {
-      latitude: currentPosition.latitude,
-      longitude: currentPosition.longitude,
-      photo: capturedPhoto,
+    const response = await api(`/attendance/${type}`, {
+      method: 'POST',
+      body: {
+        latitude: currentPosition.latitude,
+        longitude: currentPosition.longitude,
+        photo: capturedPhoto,
+      }
     });
 
     setSubmitResult({
@@ -102,7 +103,7 @@ export default function PresensiPage() {
 
     if (response.success) {
       // Refresh today's status
-      const statusData = await apiGet('/attendance/today-status');
+      const statusData = await api('/attendance/today-status', { method: 'GET' });
       if (statusData.success && statusData.data) {
         setTodayStatus(statusData.data);
       }
@@ -115,133 +116,37 @@ export default function PresensiPage() {
   const period = getCurrentPeriod();
   const canCheckin = !todayStatus.checkin;
   const canCheckout = todayStatus.checkin && !todayStatus.checkout && (period === 'both' || period === 'checkout');
-  const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 100);
+  // Radius sebenarnya (menggunakan radius dari database, default 100 meter)
+  // const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 100);
+  
+  // Radius pengetesan: 10 km (10000 meter)
+  const isWithinRadius = currentDistance !== null && currentDistance <= 10000;
   const canSubmit = capturedPhoto && currentPosition && isWithinRadius && !isSubmitting;
 
-  if (authLoading || !isAuthenticated) {
+  if (authLoading || !isAuthorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner !w-10 !h-10" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-gray-light)]">
+        <div className="spinner !w-10 !h-10 mb-4" />
+        <p className="text-[var(--text-secondary)] font-medium">Memuat data presensi...</p>
       </div>
     );
   }
 
-  if (pageLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-gray-light)]">
-        <div className="text-center animate-fade-in">
-          <div className="spinner !w-10 !h-10 mx-auto mb-4" />
-          <p className="text-sm text-[var(--text-secondary)]">Memuat data presensi...</p>
-        </div>
-      </div>
-    );
-  }
+  const today = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
+      <SubHeader title={isCheckin ? 'Presensi Datang' : 'Presensi Pulang'} />
       <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
-        {/* Greeting */}
-        <div className="animate-fade-in">
-          <h2 className="text-2xl font-bold text-[var(--primary-dark)]">
-            {getGreeting()} <HiHandRaised className="inline" />
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {formatDate(new Date())}
-          </p>
+        <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm animate-fade-in -mt-2 mb-2">
+          <HiCalendar size={20} className="text-[#1B6CA8]" />
+          <span>{today}</span>
         </div>
-
-        {/* Pegawai Info Card (locked) */}
-        <div className="card p-5 border-l-4 border-l-[var(--primary-dark)] animate-slide-up">
-          <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-            Data Pegawai
-          </h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Nama</span>
-              <span className="text-sm font-semibold">{user?.nama}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Username</span>
-              <span className="text-sm font-mono font-semibold">{user?.username}</span>
-            </div>
-            {user?.nip && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--text-secondary)]">NIP</span>
-                <span className="text-sm font-mono font-semibold">{user?.nip}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text-secondary)]">Tipe</span>
-              <span className="text-sm font-semibold capitalize">
-                {user?.user_type === 'pegawai_gerai' ? 'Pegawai Gerai' :
-                 user?.user_type === 'satpam' ? 'Satpam' :
-                 user?.user_type === 'cs' ? (user?.sub_type === 'resepsionis' ? 'CS - Resepsionis' : 'CS - Cleaning Service') :
-                 user?.user_type}
-              </span>
-            </div>
-            {user?.gerai && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--text-secondary)]">Gerai</span>
-                <span className="text-sm font-semibold">{user.gerai.kode} — {user.gerai.nama}</span>
-              </div>
-            )}
-            {user?.shift && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--text-secondary)]">Shift</span>
-                <span className="text-sm font-semibold capitalize">
-                  {user.shift.nama} ({user.shift.jam_masuk?.substring(0, 5)} - {user.shift.jam_keluar?.substring(0, 5)})
-                </span>
-              </div>
-            )}
-            {user?.departemen && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--text-secondary)]">Departemen</span>
-                <span className="text-sm font-semibold">{user?.departemen}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Today's Status */}
-        {(todayStatus.checkin || todayStatus.checkout) && (
-          <div className="card p-5 animate-slide-up">
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-              Status Hari Ini
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-[var(--border-light)]">
-                <span className="text-sm text-[var(--text-secondary)]">Presensi Masuk</span>
-                <div className="flex items-center gap-2">
-                  {todayStatus.checkin ? (
-                    <>
-                      <span className="text-sm font-mono font-medium">
-                        {formatTime(todayStatus.checkin.time)}
-                      </span>
-                      <StatusBadge status={todayStatus.checkin.status} />
-                    </>
-                  ) : (
-                    <StatusBadge status={null} />
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-[var(--text-secondary)]">Presensi Keluar</span>
-                <div className="flex items-center gap-2">
-                  {todayStatus.checkout ? (
-                    <>
-                      <span className="text-sm font-mono font-medium">
-                        {formatTime(todayStatus.checkout.time)}
-                      </span>
-                      <StatusBadge status={todayStatus.checkout.status} />
-                    </>
-                  ) : (
-                    <StatusBadge status={null} />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Submit Result */}
         {submitResult && (
@@ -277,7 +182,7 @@ export default function PresensiPage() {
         )}
 
         {/* Presensi Form — only show if there's an action available */}
-        {(canCheckin || canCheckout) && (
+        {(isCheckin ? canCheckin : canCheckout) && (
           <>
             {/* Geolocation */}
             <div className="card p-5 animate-slide-up">
@@ -298,7 +203,7 @@ export default function PresensiPage() {
 
             {/* Submit Buttons */}
             <div className="space-y-3 animate-slide-up">
-              {canCheckin && (
+              {(isCheckin && canCheckin) && (
                 <button
                   onClick={() => handleSubmitPresensi('checkin')}
                   disabled={!canSubmit}
@@ -316,7 +221,7 @@ export default function PresensiPage() {
                 </button>
               )}
 
-              {canCheckout && (
+              {(!isCheckin && canCheckout) && (
                 <button
                   onClick={() => handleSubmitPresensi('checkout')}
                   disabled={!canSubmit}
@@ -350,34 +255,40 @@ export default function PresensiPage() {
         )}
 
         {/* No action available */}
-        {!canCheckin && !canCheckout && (
+        {((isCheckin && !canCheckin) || (!isCheckin && !canCheckout)) && (
           <div className="card p-6 text-center animate-slide-up">
             <div className="block mb-3">
-              {todayStatus.checkin && todayStatus.checkout ? <HiSparkles className="text-4xl mx-auto" /> : <HiClock className="text-4xl mx-auto" />}
+              {todayStatus.checkin && todayStatus.checkout ? <HiSparkles className="text-4xl mx-auto text-[#1B6CA8]" /> : <HiClock className="text-4xl mx-auto text-[#1B6CA8]" />}
             </div>
             <h3 className="font-bold text-lg text-[var(--primary-dark)] mb-1">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Presensi Hari Ini Selesai!'
-                : 'Menunggu Jam Keluar'}
+                : isCheckin 
+                  ? 'Anda sudah melakukan presensi masuk hari ini.'
+                  : 'Belum waktunya presensi keluar atau Anda belum presensi masuk.'}
             </h3>
             <p className="text-sm text-[var(--text-secondary)]">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Terima kasih atas kehadirannya hari ini.'
-                : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
+                : isCheckin
+                  ? 'Silakan kembali saat jam pulang.'
+                  : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
             </p>
           </div>
         )}
-
-        {/* Admin link for admin users */}
-        {user?.role === 'admin' && (
-          <button
-            onClick={() => router.push('/admin')}
-            className="btn btn-outline w-full sm:hidden"
-          >
-            <HiChartBar className="inline" /> Buka Dashboard Admin
-          </button>
-        )}
       </div>
     </div>
+  );
+}
+
+export default function PresensiPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-gray-light)]">
+        <div className="spinner !w-10 !h-10" />
+      </div>
+    }>
+      <PresensiPageContent />
+    </Suspense>
   );
 }

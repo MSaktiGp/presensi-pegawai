@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiPost, apiGet } from '@/lib/api';
+import { api } from '@/lib/api';
 
 interface GeraiInfo {
   id: number;
@@ -22,7 +22,6 @@ interface User {
   id: number;
   nama: string;
   username: string;
-  nip?: string;
   departemen: string;
   role: string;
   user_type: string;
@@ -74,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const response = await apiPost('/auth/login', { username, password });
+    const response = await api('/auth/login', { method: 'POST', body: { username, password } });
 
     if (response.success && response.data) {
       const { token: newToken, user: userData } = response.data;
@@ -94,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     // Fire and forget
-    apiPost('/auth/logout', {});
+    api('/auth/logout', { method: 'POST', body: {} });
   }, []);
 
   return (
@@ -112,3 +111,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+

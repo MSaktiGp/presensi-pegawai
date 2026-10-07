@@ -7,9 +7,10 @@
 
 :root {
   /* Primary - Biru DPMPTSP */
-  --primary-dark: #1B5E7D;
-  --primary-medium: #2B7FA3;
+  --primary-dark: #0C6AA7;
+  --primary-medium: #1B5E7D;
   --primary-light: #E8F4F8;
+  --dark: #021824;
 
   /* Accent */
   --accent-gold: #F4C430;
@@ -24,6 +25,7 @@
   --text-primary: #1A1A2E;
   --text-secondary: #555770;
   --text-muted: #8E8EA0;
+  --text-white: #FFFFFF;
   --border-light: #E2E4E9;
   --border-medium: #D0D3D9;
 
@@ -96,6 +98,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
   font-weight: 700;
   line-height: 1.3;
+}
+.text-white {
+  color: var(--text-white);
 }
 
 /* ============================================
@@ -172,7 +177,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 8px 12px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 15px;

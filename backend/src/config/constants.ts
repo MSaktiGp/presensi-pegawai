@@ -5,7 +5,8 @@ export const CONFIG = {
   // Office Location - DPMPTSP Kota Jambi
   OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
   OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
-  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'),
+  // MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'), // Radius sebenarnya (40 meter)
+  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '10000'), // Radius pengetesan (10 km)
 
   // Timezone WIB (UTC+7)
   TIMEZONE: 'Asia/Jakarta',
@@ -17,6 +18,9 @@ export const CONFIG = {
   DEFAULT_CHECKIN_MINUTE: 30,
   DEFAULT_CHECKOUT_HOUR: 16,
   DEFAULT_CHECKOUT_MINUTE: 30,
+
+  // Checkin time window
+  CHECKIN_EARLY_MINUTES: 60,
 
   // Checkin late threshold (legacy fallback — now per-shift via DB)
   CHECKIN_LATE_HOUR: 9,

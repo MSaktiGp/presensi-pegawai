@@ -42,68 +42,68 @@ INSERT INTO shift_config (nama_shift, user_type, jam_masuk, jam_keluar, is_cross
 -- ============================================
 -- 3. Seed Super Admin (1 account)
 -- ============================================
-INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, is_active) VALUES
-  ('Super Administrator', 'superadmin', '100001', 'IT', 'superadmin@dpmptsp-jambi.go.id',
+INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, is_active) VALUES
+  ('Super Administrator', 'superadmin', 'IT', 'superadmin@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'superadmin', 'superadmin', TRUE);
 
 -- ============================================
 -- 4. Seed Admin (1 account)
 -- ============================================
-INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, is_active) VALUES
-  ('Administrator', 'admin', '100002', 'IT', 'admin@dpmptsp-jambi.go.id',
+INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, is_active) VALUES
+  ('Administrator', 'admin', 'IT', 'admin@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'admin', 'admin', TRUE);
 
 -- ============================================
 -- 5. Seed Pegawai Gerai (username = kode gerai)
 -- ============================================
-INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, gerai_id, is_active) VALUES
-  ('Petugas Gerai PT PLN', '40B', '200001', 'Pelayanan', 'gerai40b@dpmptsp-jambi.go.id',
+INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, gerai_id, is_active) VALUES
+  ('Petugas Gerai PT PLN', '40B', 'Pelayanan', 'gerai40b@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '40B'), TRUE),
 
-  ('Petugas Gerai BPJS Kesehatan', '61A', '200002', 'Pelayanan', 'gerai61a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai BPJS Kesehatan', '61A', 'Pelayanan', 'gerai61a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '61A'), TRUE),
 
-  ('Petugas Gerai DJP', '62A', '200003', 'Pelayanan', 'gerai62a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai DJP', '62A', 'Pelayanan', 'gerai62a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '62A'), TRUE),
 
-  ('Petugas Gerai PT Pos Indonesia', '63A', '200004', 'Pelayanan', 'gerai63a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai PT Pos Indonesia', '63A', 'Pelayanan', 'gerai63a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '63A'), TRUE),
 
-  ('Petugas Gerai PERUMDAM', '64A', '200005', 'Pelayanan', 'gerai64a@dpmptsp-jambi.go.id',
+  ('Petugas Gerai PERUMDAM', '64A', 'Pelayanan', 'gerai64a@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'pegawai_gerai', 'pegawai_gerai',
    (SELECT id FROM gerai WHERE kode_gerai = '64A'), TRUE);
 
 -- ============================================
 -- 6. Seed Satpam (username = nama lengkap)
 -- ============================================
-INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, is_active) VALUES
-  ('Budi Santoso', 'budisantoso', '300001', 'Keamanan', 'budi.santoso@dpmptsp-jambi.go.id',
+INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, is_active) VALUES
+  ('Budi Santoso', 'budisantoso', 'Keamanan', 'budi.santoso@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE),
 
-  ('Andi Wijaya', 'andiwijaya', '300002', 'Keamanan', 'andi.wijaya@dpmptsp-jambi.go.id',
+  ('Andi Wijaya', 'andiwijaya', 'Keamanan', 'andi.wijaya@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE),
 
-  ('Hendra Gunawan', 'hendragunawan', '300003', 'Keamanan', 'hendra.gunawan@dpmptsp-jambi.go.id',
+  ('Hendra Gunawan', 'hendragunawan', 'Keamanan', 'hendra.gunawan@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'satpam', 'satpam', TRUE);
 
 -- ============================================
 -- 7. Seed CS (username = nama lengkap)
 -- ============================================
-INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, sub_type, is_active) VALUES
-  ('Rina Wati', 'rinawati', '400001', 'Pelayanan', 'rina.wati@dpmptsp-jambi.go.id',
+INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, sub_type, is_active) VALUES
+  ('Rina Wati', 'rinawati', 'Pelayanan', 'rina.wati@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'resepsionis', TRUE),
 
-  ('Siti Nurhaliza', 'sitinurhaliza', '400002', 'Pelayanan', 'siti.nurhaliza@dpmptsp-jambi.go.id',
+  ('Siti Nurhaliza', 'sitinurhaliza', 'Pelayanan', 'siti.nurhaliza@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'resepsionis', TRUE),
 
-  ('Maya Anggraini', 'mayaanggraini', '400003', 'Kebersihan', 'maya.anggraini@dpmptsp-jambi.go.id',
+  ('Maya Anggraini', 'mayaanggraini', 'Kebersihan', 'maya.anggraini@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'cleaning_service', TRUE),
 
-  ('Dewi Lestari', 'dewilestari', '400004', 'Kebersihan', 'dewi.lestari@dpmptsp-jambi.go.id',
+  ('Dewi Lestari', 'dewilestari', 'Kebersihan', 'dewi.lestari@dpmptsp-jambi.go.id',
    '$2b$10$7ZKYQMCdBEciNV4PF9Ed7ubbSKxuGPOUOrPonePrHVQp58ZpocVuC', 'cs', 'cs', 'cleaning_service', TRUE);
 
 -- ============================================

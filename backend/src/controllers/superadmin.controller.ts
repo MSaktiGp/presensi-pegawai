@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { ROLES } from '../config/constants';
-import { sendSuccess, sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 // ============================================
@@ -17,10 +16,10 @@ export const listGerai = async (_req: Request, res: Response): Promise<void> => 
        FROM gerai g
        ORDER BY g.kode_gerai ASC`
     );
-    sendSuccess(res, result.rows);
+    res.json({ success: true, message: "Success", data: result.rows });
   } catch (error) {
     logger.error('List gerai error', { error });
-    sendError(res, 'Gagal mengambil data gerai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data gerai.' });
   }
 };
 
@@ -29,14 +28,14 @@ export const createGerai = async (req: Request, res: Response): Promise<void> =>
     const { kode_gerai, nama_gerai } = req.body;
 
     if (!kode_gerai || !nama_gerai) {
-      sendError(res, 'Kode gerai dan nama gerai wajib diisi.');
+      res.status(400).json({ success: false, message: 'Kode gerai dan nama gerai wajib diisi.' });
       return;
     }
 
     // Check duplicate
     const existing = await query('SELECT id FROM gerai WHERE LOWER(kode_gerai) = LOWER($1)', [kode_gerai]);
     if (existing.rows.length > 0) {
-      sendError(res, `Gerai dengan kode "${kode_gerai}" sudah ada.`);
+      res.status(400).json({ success: false, message: `Gerai dengan kode "${kode_gerai}" sudah ada.` });
       return;
     }
 
@@ -48,12 +47,11 @@ export const createGerai = async (req: Request, res: Response): Promise<void> =>
     // Also create a pegawai_gerai account for this gerai
     const defaultPassword = await bcrypt.hash('password123', 10);
     await query(
-      `INSERT INTO pegawai (nama, username, nip, departemen, password_hash, role, user_type, gerai_id, is_active)
-       VALUES ($1, $2, $3, 'Pelayanan', $4, $5, $6, $7, TRUE)`,
+      `INSERT INTO pegawai (nama, username, departemen, password_hash, role, user_type, gerai_id, is_active)
+       VALUES ($1, $2, 'Pelayanan', $3, $4, $5, $6, TRUE)`,
       [
         `Pegawai ${kode_gerai.toUpperCase()}`,
         kode_gerai.toUpperCase(),
-        `G-${kode_gerai.toUpperCase()}`,
         defaultPassword,
         ROLES.PEGAWAI_GERAI,
         'pegawai_gerai',
@@ -79,10 +77,10 @@ export const createGerai = async (req: Request, res: Response): Promise<void> =>
     }
 
     logger.info('Gerai created', { kode_gerai, nama_gerai });
-    sendSuccess(res, result.rows[0], 'Gerai berhasil ditambahkan.');
+    res.json({ success: true, message: 'Gerai berhasil ditambahkan.', data: result.rows[0] });
   } catch (error) {
     logger.error('Create gerai error', { error });
-    sendError(res, 'Gagal menambahkan gerai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal menambahkan gerai.' });
   }
 };
 
@@ -97,15 +95,15 @@ export const updateGerai = async (req: Request, res: Response): Promise<void> =>
     );
 
     if (result.rows.length === 0) {
-      sendError(res, 'Gerai tidak ditemukan.', 404);
+      res.status(404).json({ success: false, message: 'Gerai tidak ditemukan.' });
       return;
     }
 
     logger.info('Gerai updated', { id, kode_gerai, nama_gerai });
-    sendSuccess(res, result.rows[0], 'Gerai berhasil diperbarui.');
+    res.json({ success: true, message: 'Gerai berhasil diperbarui.', data: result.rows[0] });
   } catch (error) {
     logger.error('Update gerai error', { error });
-    sendError(res, 'Gagal memperbarui gerai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal memperbarui gerai.' });
   }
 };
 
@@ -119,7 +117,7 @@ export const toggleGerai = async (req: Request, res: Response): Promise<void> =>
     );
 
     if (result.rows.length === 0) {
-      sendError(res, 'Gerai tidak ditemukan.', 404);
+      res.status(404).json({ success: false, message: 'Gerai tidak ditemukan.' });
       return;
     }
 
@@ -133,10 +131,10 @@ export const toggleGerai = async (req: Request, res: Response): Promise<void> =>
 
     const statusText = gerai.is_active ? 'diaktifkan' : 'dinonaktifkan';
     logger.info(`Gerai ${statusText}`, { id, kode_gerai: gerai.kode_gerai });
-    sendSuccess(res, gerai, `Gerai berhasil ${statusText}.`);
+    res.json({ success: true, message: `Gerai berhasil ${statusText}.`, data: gerai });
   } catch (error) {
     logger.error('Toggle gerai error', { error });
-    sendError(res, 'Gagal mengubah status gerai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengubah status gerai.' });
   }
 };
 
@@ -149,10 +147,10 @@ export const listPegawai = async (req: Request, res: Response): Promise<void> =>
     const { user_type, is_active } = req.query;
 
     let sql = `
-      SELECT p.id, p.nama, p.username, p.nip, p.departemen, p.role, p.user_type,
+      SELECT p.id, p.nama, p.username, p.departemen, p.role, p.user_type,
              p.sub_type, p.gerai_id, p.is_active, p.created_at,
              g.kode_gerai, g.nama_gerai,
-             sc.nama_shift, sc.jam_masuk, sc.jam_keluar
+             sc.id as shift_config_id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar
       FROM pegawai p
       LEFT JOIN gerai g ON p.gerai_id = g.id
       LEFT JOIN pegawai_shift_assignment psa ON p.id = psa.pegawai_id AND psa.is_active = TRUE
@@ -174,33 +172,33 @@ export const listPegawai = async (req: Request, res: Response): Promise<void> =>
     sql += ' ORDER BY p.user_type, p.nama ASC';
 
     const result = await query(sql, params);
-    sendSuccess(res, result.rows);
+    res.json({ success: true, message: "Success", data: result.rows });
   } catch (error) {
     logger.error('List pegawai error', { error });
-    sendError(res, 'Gagal mengambil data pegawai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data pegawai.' });
   }
 };
 
 export const createPegawai = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nama, username, nip, departemen, email, password, user_type, sub_type, gerai_id } = req.body;
+    const { nama, username, departemen, email, password, user_type, sub_type, gerai_id } = req.body;
 
     if (!nama || !username || !user_type) {
-      sendError(res, 'Nama, username, dan tipe user wajib diisi.');
+      res.status(400).json({ success: false, message: 'Nama, username, dan tipe user wajib diisi.' });
       return;
     }
 
     // Validate user_type
-    const validTypes = ['pegawai_gerai', 'satpam', 'cs'];
+    const validTypes = ['pegawai_gerai', 'satpam', 'cs', 'resepsionis'];
     if (!validTypes.includes(user_type)) {
-      sendError(res, 'Tipe user tidak valid. Pilih: pegawai_gerai, satpam, atau cs.');
+      res.status(400).json({ success: false, message: 'Tipe user tidak valid. Pilih: pegawai_gerai, satpam, cs, atau resepsionis.' });
       return;
     }
 
     // Check duplicate username
     const existing = await query('SELECT id FROM pegawai WHERE LOWER(username) = LOWER($1)', [username]);
     if (existing.rows.length > 0) {
-      sendError(res, `Username "${username}" sudah digunakan.`);
+      res.status(400).json({ success: false, message: `Username "${username}" sudah digunakan.` });
       return;
     }
 
@@ -210,47 +208,46 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
     const role = user_type;
 
     const result = await query(
-      `INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, sub_type, gerai_id, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE) RETURNING id, nama, username, user_type, sub_type, role`,
-      [nama, username, nip || null, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, gerai_id || null]
+      `INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, sub_type, gerai_id, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE) RETURNING id, nama, username, user_type, sub_type, role`,
+      [nama, username, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, gerai_id || null]
     );
 
     logger.info('Pegawai created', { nama, username, user_type });
-    sendSuccess(res, result.rows[0], 'Pegawai berhasil ditambahkan.');
+    res.json({ success: true, message: 'Pegawai berhasil ditambahkan.', data: result.rows[0] });
   } catch (error) {
     logger.error('Create pegawai error', { error });
-    sendError(res, 'Gagal menambahkan pegawai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal menambahkan pegawai.' });
   }
 };
 
 export const updatePegawai = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nama, username, nip, departemen, email, sub_type } = req.body;
+    const { nama, username, departemen, email, sub_type } = req.body;
 
     const result = await query(
       `UPDATE pegawai SET 
         nama = COALESCE($1, nama),
         username = COALESCE($2, username),
-        nip = COALESCE($3, nip),
-        departemen = COALESCE($4, departemen),
-        email = COALESCE($5, email),
-        sub_type = COALESCE($6, sub_type),
+        departemen = COALESCE($3, departemen),
+        email = COALESCE($4, email),
+        sub_type = COALESCE($5, sub_type),
         updated_at = NOW()
-       WHERE id = $7 RETURNING id, nama, username, user_type, sub_type, role`,
-      [nama, username, nip, departemen, email, sub_type, id]
+       WHERE id = $6 RETURNING id, nama, username, user_type, sub_type, role`,
+      [nama, username, departemen, email, sub_type, id]
     );
 
     if (result.rows.length === 0) {
-      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
       return;
     }
 
     logger.info('Pegawai updated', { id });
-    sendSuccess(res, result.rows[0], 'Data pegawai berhasil diperbarui.');
+    res.json({ success: true, message: 'Data pegawai berhasil diperbarui.', data: result.rows[0] });
   } catch (error) {
     logger.error('Update pegawai error', { error });
-    sendError(res, 'Gagal memperbarui data pegawai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal memperbarui data pegawai.' });
   }
 };
 
@@ -264,17 +261,17 @@ export const togglePegawai = async (req: Request, res: Response): Promise<void> 
     );
 
     if (result.rows.length === 0) {
-      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
       return;
     }
 
     const pegawai = result.rows[0];
     const statusText = pegawai.is_active ? 'diaktifkan' : 'dinonaktifkan';
     logger.info(`Pegawai ${statusText}`, { id, nama: pegawai.nama });
-    sendSuccess(res, pegawai, `Pegawai berhasil ${statusText}.`);
+    res.json({ success: true, message: `Pegawai berhasil ${statusText}.`, data: pegawai });
   } catch (error) {
     logger.error('Toggle pegawai error', { error });
-    sendError(res, 'Gagal mengubah status pegawai.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengubah status pegawai.' });
   }
 };
 
@@ -292,15 +289,15 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     );
 
     if (result.rows.length === 0) {
-      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
       return;
     }
 
     logger.info('Password reset', { id, nama: result.rows[0].nama });
-    sendSuccess(res, { id: result.rows[0].id }, 'Password berhasil direset.');
+    res.json({ success: true, message: 'Password berhasil direset.', data: { id: result.rows[0].id } });
   } catch (error) {
     logger.error('Reset password error', { error });
-    sendError(res, 'Gagal mereset password.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mereset password.' });
   }
 };
 
@@ -311,10 +308,99 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 export const listShifts = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await query('SELECT * FROM shift_config ORDER BY user_type, nama_shift');
-    sendSuccess(res, result.rows);
+    res.json({ success: true, message: "Success", data: result.rows });
   } catch (error) {
     logger.error('List shifts error', { error });
-    sendError(res, 'Gagal mengambil data shift.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data shift.' });
+  }
+};
+
+export const createShift = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = req.body;
+
+    if (!nama_shift || !user_type || !jam_masuk || !jam_keluar) {
+      res.status(400).json({ success: false, message: 'Nama shift, tipe petugas, jam masuk, dan jam keluar wajib diisi.' });
+      return;
+    }
+
+    const result = await query(
+      `INSERT INTO shift_config (nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [nama_shift, user_type, jam_masuk, jam_keluar, !!is_cross_midnight, late_threshold_minutes ?? 60, allowed_days || '0,1,2,3,4,5,6']
+    );
+
+    logger.info('Shift created', { nama_shift, user_type });
+    res.json({ success: true, message: 'Shift berhasil ditambahkan.', data: result.rows[0] });
+  } catch (error) {
+    logger.error('Create shift error', { error });
+    res.status(500).json({ success: false, message: 'Gagal menambahkan shift.' });
+  }
+};
+
+export const updateShift = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = req.body;
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (nama_shift !== undefined) { updates.push(`nama_shift = $${idx++}`); values.push(nama_shift); }
+    if (user_type !== undefined) { updates.push(`user_type = $${idx++}`); values.push(user_type); }
+    if (jam_masuk !== undefined) { updates.push(`jam_masuk = $${idx++}`); values.push(jam_masuk); }
+    if (jam_keluar !== undefined) { updates.push(`jam_keluar = $${idx++}`); values.push(jam_keluar); }
+    if (is_cross_midnight !== undefined) { updates.push(`is_cross_midnight = $${idx++}`); values.push(is_cross_midnight); }
+    if (late_threshold_minutes !== undefined) { updates.push(`late_threshold_minutes = $${idx++}`); values.push(late_threshold_minutes); }
+    if (allowed_days !== undefined) { updates.push(`allowed_days = $${idx++}`); values.push(allowed_days); }
+
+    if (updates.length === 0) {
+      res.status(400).json({ success: false, message: 'Tidak ada data yang diperbarui.' });
+      return;
+    }
+
+    values.push(id);
+    const result = await query(
+      `UPDATE shift_config SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Shift tidak ditemukan.' });
+      return;
+    }
+
+    logger.info('Shift updated', { id });
+    res.json({ success: true, message: 'Shift berhasil diperbarui.', data: result.rows[0] });
+  } catch (error) {
+    logger.error('Update shift error', { error });
+    res.status(500).json({ success: false, message: 'Gagal memperbarui shift.' });
+  }
+};
+
+export const deleteShift = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Assignments (incl. history) reference shift_config via FK, so block deletion while in use.
+    const used = await query('SELECT 1 FROM pegawai_shift_assignment WHERE shift_config_id = $1 LIMIT 1', [id]);
+    if (used.rows.length > 0) {
+      res.status(400).json({ success: false, message: 'Shift sudah pernah dipakai petugas sehingga tidak bisa dihapus.' });
+      return;
+    }
+
+    const result = await query('DELETE FROM shift_config WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Shift tidak ditemukan.' });
+      return;
+    }
+
+    logger.info('Shift deleted', { id });
+    res.json({ success: true, message: 'Shift berhasil dihapus.', data: result.rows[0] });
+  } catch (error) {
+    logger.error('Delete shift error', { error });
+    res.status(500).json({ success: false, message: 'Gagal menghapus shift.' });
   }
 };
 
@@ -323,7 +409,7 @@ export const assignShift = async (req: Request, res: Response): Promise<void> =>
     const { pegawai_id, shift_config_id, tanggal_mulai } = req.body;
 
     if (!pegawai_id || !shift_config_id) {
-      sendError(res, 'Pegawai dan shift wajib dipilih.');
+      res.status(400).json({ success: false, message: 'Pegawai dan shift wajib dipilih.' });
       return;
     }
 
@@ -341,10 +427,10 @@ export const assignShift = async (req: Request, res: Response): Promise<void> =>
     );
 
     logger.info('Shift assigned', { pegawai_id, shift_config_id });
-    sendSuccess(res, result.rows[0], 'Shift berhasil diassign.');
+    res.json({ success: true, message: 'Shift berhasil diassign.', data: result.rows[0] });
   } catch (error) {
     logger.error('Assign shift error', { error });
-    sendError(res, 'Gagal mengassign shift.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengassign shift.' });
   }
 };
 
@@ -364,9 +450,9 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
         (SELECT COUNT(*) FROM gerai WHERE is_active = FALSE) as total_gerai_nonaktif
     `);
 
-    sendSuccess(res, stats.rows[0]);
+    res.json({ success: true, message: "Success", data: stats.rows[0] });
   } catch (error) {
     logger.error('Dashboard stats error', { error });
-    sendError(res, 'Gagal mengambil statistik dashboard.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil statistik dashboard.' });
   }
 };

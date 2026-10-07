@@ -3,20 +3,19 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { attendanceSchema } from '../validators/attendance.validator';
 import { processAttendance, getTodayStatus } from '../services/attendance.service';
 import { CONFIG } from '../config/constants';
-import { sendSuccess, sendError } from '../utils/response';
 import { logger } from '../utils/logger';
 
 export const checkin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
-      sendError(res, 'Tidak terautentikasi.', 401);
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
       return;
     }
 
     // Validate input
     const validation = attendanceSchema.safeParse(req.body);
     if (!validation.success) {
-      sendError(res, validation.error.issues[0].message);
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
       return;
     }
 
@@ -31,27 +30,27 @@ export const checkin = async (req: AuthRequest, res: Response): Promise<void> =>
     );
 
     if (result.success) {
-      sendSuccess(res, result, result.message);
+      res.json({ success: true, message: result.message, data: result });
     } else {
-      sendError(res, result.message);
+      res.status(400).json({ success: false, message: result.message });
     }
   } catch (error) {
     logger.error('Checkin controller error', { error });
-    sendError(res, 'Terjadi kesalahan saat proses presensi masuk.', 500);
+    res.status(500).json({ success: false, message: 'Terjadi kesalahan saat proses presensi masuk.' });
   }
 };
 
 export const checkout = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
-      sendError(res, 'Tidak terautentikasi.', 401);
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
       return;
     }
 
     // Validate input
     const validation = attendanceSchema.safeParse(req.body);
     if (!validation.success) {
-      sendError(res, validation.error.issues[0].message);
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
       return;
     }
 
@@ -66,27 +65,26 @@ export const checkout = async (req: AuthRequest, res: Response): Promise<void> =
     );
 
     if (result.success) {
-      sendSuccess(res, result, result.message);
+      res.json({ success: true, message: result.message, data: result });
     } else {
-      sendError(res, result.message);
+      res.status(400).json({ success: false, message: result.message });
     }
   } catch (error) {
     logger.error('Checkout controller error', { error });
-    sendError(res, 'Terjadi kesalahan saat proses presensi keluar.', 500);
+    res.status(500).json({ success: false, message: 'Terjadi kesalahan saat proses presensi keluar.' });
   }
 };
 
 export const getUserData = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
-      sendError(res, 'Tidak terautentikasi.', 401);
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
       return;
     }
 
-    sendSuccess(res, {
+    res.json({ success: true, message: "Success", data: {
       nama: req.user.nama,
       username: req.user.username,
-      nip: req.user.nip,
       departemen: req.user.departemen,
       user_type: req.user.user_type,
       sub_type: req.user.sub_type,
@@ -96,24 +94,39 @@ export const getUserData = async (req: AuthRequest, res: Response): Promise<void
         longitude: CONFIG.OFFICE_LNG,
         max_radius: CONFIG.MAX_RADIUS_METERS,
       },
-    });
+    } });
   } catch (error) {
     logger.error('Get user data error', { error });
-    sendError(res, 'Gagal mengambil data pengguna.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data pengguna.' });
   }
 };
 
 export const todayStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
-      sendError(res, 'Tidak terautentikasi.', 401);
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
       return;
     }
 
     const status = await getTodayStatus(req.user.id);
-    sendSuccess(res, status);
+    res.json({ success: true, message: "Success", data: status });
   } catch (error) {
     logger.error('Today status error', { error });
-    sendError(res, 'Gagal mengambil status presensi hari ini.', 500);
+    res.status(500).json({ success: false, message: 'Gagal mengambil status presensi hari ini.' });
+  }
+};
+
+export const getHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Tidak terautentikasi.' });
+      return;
+    }
+    const limit = parseInt(req.query.limit as string) || 5;
+    const history = await require('../services/attendance.service').getAttendanceHistory(req.user.id, limit);
+    res.json({ success: true, message: 'Success', data: history });
+  } catch (error) {
+    logger.error('Get history error', { error });
+    res.status(500).json({ success: false, message: 'Gagal mengambil riwayat presensi.' });
   }
 };

@@ -10,14 +10,5 @@ export const apiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Vercel uses proxy — extract IP from X-Forwarded-For header
-  keyGenerator: (req) => {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.ip ||
-      'unknown'
-    );
-  },
-  validate: { xForwardedForHeader: false, forwardedHeader: false },
 });
 

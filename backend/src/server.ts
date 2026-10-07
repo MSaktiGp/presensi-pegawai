@@ -29,6 +29,9 @@ app.use((_req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Trust proxy for Vercel/Railway
+app.set('trust proxy', 1);
+
 // Rate limiting
 app.use('/api/', apiRateLimiter);
 

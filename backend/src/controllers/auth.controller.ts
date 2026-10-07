@@ -115,9 +115,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         shift: shiftInfo,
       },
     } });
-  } catch (error) {
-    logger.error('Login error', { error });
-    res.status(500).json({ success: false, message: 'Terjadi kesalahan saat login. Silakan coba lagi.' });
+  } catch (error: any) {
+    logger.error('Login error', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat login. Silakan coba lagi.',
+      // Include debug info so we can diagnose Vercel deployment issues
+      ...(process.env.NODE_ENV !== 'production' && {
+        debug: error.message,
+        has_database_url: !!process.env.DATABASE_URL,
+      }),
+    });
   }
 };
 

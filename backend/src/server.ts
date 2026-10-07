@@ -1,5 +1,9 @@
 import express from 'express';
 import path from 'path';
+import dotenv from 'dotenv';
+
+// Ensure env vars are loaded early (critical for Vercel serverless)
+dotenv.config();
 import { CONFIG } from './config/constants';
 import { apiRateLimiter } from './middleware/rateLimit.middleware';
 import authRoutes from './routes/auth.routes';
@@ -44,12 +48,36 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superadminRoutes);
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Sistem Presensi DPMPTSP Kota Jambi — API is running',
+// Health check — diagnose DB and env issues
+app.get('/api/health', async (_req, res) => {
+  const checks: Record<string, any> = {
+    api: true,
     timestamp: new Date().toISOString(),
+    env: {
+      DATABASE_URL: !!process.env.DATABASE_URL,
+      JWT_SECRET: !!process.env.JWT_SECRET,
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      VERCEL: process.env.VERCEL || 'not set',
+    },
+  };
+
+  // Test database connectivity
+  try {
+    const { query: dbQuery } = require('./config/database');
+    const result = await dbQuery('SELECT COUNT(*) as count FROM pegawai');
+    checks.database = { connected: true, pegawai_count: result.rows[0]?.count };
+  } catch (err: any) {
+    checks.database = { connected: false, error: err.message };
+  }
+
+  const allOk = checks.api && checks.database?.connected && checks.env.DATABASE_URL;
+  res.status(allOk ? 200 : 503).json({
+    success: allOk,
+    message: allOk
+      ? 'Sistem Presensi DPMPTSP Kota Jambi — All systems operational'
+      : 'Some checks failed — see details',
+    data: checks,
   });
 });
 
@@ -67,6 +95,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({
     success: false,
     message: 'Terjadi kesalahan internal server.',
+    // Include error detail in non-production for debugging
+    ...(process.env.NODE_ENV !== 'production' && { debug: err.message }),
   });
 });
 

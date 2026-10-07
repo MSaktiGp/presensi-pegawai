@@ -10,5 +10,6 @@ export const apiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validations (like IPv6 key check)
 });
 

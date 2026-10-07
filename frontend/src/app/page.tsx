@@ -188,7 +188,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="text-center text-white/40 text-xs mt-6">
-            © {new Date().getFullYear()} DPMPTSP Kota Jambi — Sistem Presensi Kehadiran
+            © {new Date().getFullYear()} MPP Kota Jambi — Sistem Presensi Kehadiran
           </p>
         </div>
       </div>

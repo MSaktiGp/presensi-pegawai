@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 /* ============================================
-   Sistem Presensi DPMPTSP Kota Jambi
+   Sistem Presensi MPP Kota Jambi
    Global Styles & Design System
    ============================================ */
 
 :root {
-  /* Primary - Biru DPMPTSP */
+  /* Primary - Biru MPP */
   --primary-dark: #0C6AA7;
   --primary-medium: #1B5E7D;
   --primary-light: #E8F4F8;

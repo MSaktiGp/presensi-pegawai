@@ -75,7 +75,7 @@ app.get('/api/health', async (_req, res) => {
   res.status(allOk ? 200 : 503).json({
     success: allOk,
     message: allOk
-      ? 'Sistem Presensi DPMPTSP Kota Jambi — All systems operational'
+      ? 'Sistem Presensi MPP Kota Jambi — All systems operational'
       : 'Some checks failed — see details',
     data: checks,
   });
@@ -104,7 +104,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
   app.listen(CONFIG.PORT, () => {
     logger.info(`🚀 Server berjalan di http://localhost:${CONFIG.PORT}`);
-    logger.info(`📍 Kantor DPMPTSP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
+    logger.info(`📍 Lokasi MPP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
     logger.info(`📏 Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
     logger.info(`🕐 Jam masuk: tanpa batasan waktu`);
     const monThuStart = `${String(CONFIG.CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.CHECKOUT_START_MINUTE).padStart(2, '0')}`;

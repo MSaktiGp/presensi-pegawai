@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const CONFIG = {
-  // Office Location - DPMPTSP Kota Jambi
+  // Office Location - MPP Kota Jambi
   OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
   OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
   // MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'), // Radius sebenarnya (40 meter)

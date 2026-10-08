@@ -20,8 +20,10 @@ interface Petugas {
   jam_masuk: string | null;
   jam_keluar: string | null;
   is_active: boolean;
+  shift_config_id: number | null;
 }
 interface Gerai { id: number; kode_gerai: string; nama_gerai: string; is_active: boolean }
+interface Shift { id: number; nama_shift: string; user_type: string; jam_masuk: string; jam_keluar: string; }
 
 const TYPES = [
   { value: '', label: 'Semua' },
@@ -32,13 +34,14 @@ const TYPES = [
 ];
 const typeLabel = (t: string) => TYPES.find((x) => x.value === t)?.label ?? t;
 
-const EMPTY_FORM = { nama: '', username: '', departemen: '', password: '', user_type: 'satpam', gerai_id: '' };
+const EMPTY_FORM = { nama: '', username: '', departemen: '', password: '', user_type: 'satpam', gerai_id: '', shift_config_id: '' };
 
 export default function PetugasPage() {
   const allowed = useRoleGuard(['superadmin']);
 
   const [list, setList] = useState<Petugas[]>([]);
   const [gerai, setGerai] = useState<Gerai[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [filterType, setFilterType] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -57,7 +60,10 @@ export default function PetugasPage() {
 
   useEffect(() => { if (allowed) load(); }, [allowed, load]);
   useEffect(() => {
-    if (allowed) api<Gerai[]>('/superadmin/gerai').then((r) => r.success && r.data && setGerai(r.data));
+    if (allowed) {
+      api<Gerai[]>('/superadmin/gerai').then((r) => r.success && r.data && setGerai(r.data));
+      api<Shift[]>('/superadmin/shifts').then((r) => r.success && r.data && setShifts(r.data));
+    }
   }, [allowed]);
 
   const flash = (ok: boolean, msg: string) => {
@@ -70,6 +76,7 @@ export default function PetugasPage() {
     setForm({
       nama: p.nama, username: p.username, departemen: p.departemen ?? '', password: '',
       user_type: p.user_type, gerai_id: p.gerai_id ? String(p.gerai_id) : '',
+      shift_config_id: p.shift_config_id ? String(p.shift_config_id) : ''
     });
     setEditing(p);
   };
@@ -79,8 +86,8 @@ export default function PetugasPage() {
     setSaving(true);
     const isNew = editing === 'new';
     const body = isNew
-      ? { ...form, gerai_id: form.gerai_id ? Number(form.gerai_id) : null }
-      : { nama: form.nama, username: form.username, departemen: form.departemen };
+      ? { ...form, gerai_id: form.gerai_id ? Number(form.gerai_id) : null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
+      : { nama: form.nama, username: form.username, departemen: form.departemen, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null };
     const r = isNew
       ? await api('/superadmin/pegawai', { method: 'POST', body })
       : await api(`/superadmin/pegawai/${(editing as Petugas).id}`, { method: 'PUT', body });
@@ -117,7 +124,7 @@ export default function PetugasPage() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-fade-in">
           <div>
             <h1 className="text-2xl font-bold text-[var(--primary-dark)]">Manajemen Petugas</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Kelola akun pegawai gerai, satpam, dan cleaning service</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Kelola akun petugas alih daya di MPP</p>
           </div>
           <button onClick={openNew} className="btn btn-primary text-sm min-h-[44px]">
             <HiPlus className="w-4 h-4" /> Tambah Petugas
@@ -226,6 +233,15 @@ export default function PetugasPage() {
                 <Field label="Password (kosongkan = password123)"><input type="password" autoComplete="new-password" value={form.password} onChange={set('password')} className="input text-sm" /></Field>
               </>
             )}
+
+            <Field label="Template Jadwal (Shift)">
+              <select value={form.shift_config_id} onChange={set('shift_config_id')} className="input text-sm">
+                <option value="">Tidak ada jadwal (bebas)</option>
+                {shifts.filter(s => s.user_type === (editing === 'new' ? form.user_type : (editing as Petugas).user_type)).map((s) => (
+                  <option key={s.id} value={s.id}>{s.nama_shift} ({s.jam_masuk.slice(0, 5)} - {s.jam_keluar.slice(0, 5)})</option>
+                ))}
+              </select>
+            </Field>
 
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setEditing(null)} className="btn btn-outline text-sm">Batal</button>

@@ -18,6 +18,8 @@ export default function Header() {
 
   const handleLogout = () => {
     logout();
+    setMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     router.push('/');
   };
 
@@ -33,7 +35,7 @@ export default function Header() {
     pathname === href ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10';
 
   return (
-    <header className="w-full bg-primary-dark text-white shadow-lg relative overflow-hidden">
+    <header className="sticky top-0 z-50 w-full bg-primary-dark text-white shadow-lg overflow-hidden">
       {/* Subtle pattern overlay */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{

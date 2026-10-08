@@ -59,24 +59,23 @@ export interface AttendanceResult {
 }
 
 /**
- * Get the active shift for a pegawai from the database.
+ * Get the active shift for a pegawai dynamically.
+ * - Fetches all shifts matching the pegawai's user_type from shift_config.
+ * - If only one shift exists, returns it directly.
+ * - If multiple shifts exist (e.g. satpam with pagi/siang/malam):
+ *   - Checkin: picks the shift whose jam_masuk is closest to current time.
+ *   - Checkout: picks the shift whose jam_masuk is closest to today's checkin_time.
  */
-const getActiveShift = async (pegawaiId: number): Promise<ShiftInfo | null> => {
-  const result = await query(
-    `SELECT sc.id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
-            sc.is_cross_midnight, sc.late_threshold_minutes, sc.allowed_days
-     FROM pegawai_shift_assignment psa
-     JOIN shift_config sc ON psa.shift_config_id = sc.id
-     WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
-     ORDER BY psa.created_at DESC
-     LIMIT 1`,
-    [pegawaiId]
+const getActiveShift = async (pegawaiId: number, userType: string, type: 'checkin' | 'checkout' = 'checkin'): Promise<ShiftInfo | null> => {
+  const shiftResult = await query(
+    `SELECT id, nama_shift, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days
+     FROM shift_config WHERE user_type = $1`,
+    [userType]
   );
 
-  if (result.rows.length === 0) return null;
+  if (shiftResult.rows.length === 0) return null;
 
-  const row = result.rows[0];
-  return {
+  const toShiftInfo = (row: any): ShiftInfo => ({
     id: row.id,
     nama_shift: row.nama_shift,
     jam_masuk: row.jam_masuk,
@@ -84,7 +83,37 @@ const getActiveShift = async (pegawaiId: number): Promise<ShiftInfo | null> => {
     is_cross_midnight: row.is_cross_midnight,
     late_threshold_minutes: row.late_threshold_minutes,
     allowed_days: row.allowed_days || '0,1,2,3,4,5,6',
-  };
+  });
+
+  // Single shift → return directly
+  if (shiftResult.rows.length === 1) return toShiftInfo(shiftResult.rows[0]);
+
+  // Multiple shifts → pick closest to target time
+  const wib = getWIBParts();
+  let targetMinutes = wib.hour * 60 + wib.minute;
+
+  if (type === 'checkout') {
+    const today = getWIBDateString();
+    const att = await query(
+      `SELECT checkin_time FROM attendance WHERE pegawai_id = $1 AND date = $2 AND checkin_time IS NOT NULL`,
+      [pegawaiId, today]
+    );
+    if (att.rows.length > 0) {
+      const ciWib = getWIBParts(new Date(att.rows[0].checkin_time));
+      targetMinutes = ciWib.hour * 60 + ciWib.minute;
+    }
+  }
+
+  let best = shiftResult.rows[0];
+  let minDiff = Infinity;
+  for (const row of shiftResult.rows) {
+    const masukMins = parseTimeToMinutes(row.jam_masuk);
+    let diff = Math.abs(targetMinutes - masukMins);
+    if (diff > 12 * 60) diff = 24 * 60 - diff; // wrap around midnight
+    if (diff < minDiff) { minDiff = diff; best = row; }
+  }
+
+  return toShiftInfo(best);
 };
 
 /**
@@ -136,6 +165,18 @@ const isWithinWorkingHours = (
   type: 'checkin' | 'checkout',
   shift: ShiftInfo | null
 ): { allowed: boolean; message: string } => {
+  if (shift && shift.allowed_days && type === 'checkin') {
+    const dStr = new Date().toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE });
+    const wibDate = new Date(dStr);
+    const currentDay = wibDate.getDay().toString();
+    if (!shift.allowed_days.split(',').includes(currentDay)) {
+      return {
+        allowed: false,
+        message: `Hari ini bukan jadwal kerja untuk shift ${shift.nama_shift}.`,
+      };
+    }
+  }
+
   // Checkin validation
   if (type === 'checkin') {
     const wib = getWIBParts();
@@ -348,12 +389,41 @@ export const processAttendance = async (
   const now = new Date();
   const today = getWIBDateString();
 
-  // 0. Get active shift for this pegawai
-  const shift = await getActiveShift(pegawaiId);
+  // 0. Get user info
+  const userResult = await query(`SELECT user_type, sub_type FROM pegawai WHERE id = $1`, [pegawaiId]);
+  if (userResult.rows.length === 0) {
+    return {
+      success: false,
+      message: 'Pegawai tidak ditemukan',
+      distance_from_office: -1,
+      server_timestamp: now.toISOString(),
+      status: 'failed',
+    };
+  }
+  const { user_type, sub_type } = userResult.rows[0];
 
-  // 0.5 Check allowed days for checkin
+  const currentDayNum = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+  // Hardcoded weekend rule for non-satpam
+  if ((currentDayNum === 0 || currentDayNum === 6) && (user_type === 'pegawai_gerai' || (user_type === 'cs' && sub_type === 'resepsionis'))) {
+    const { distance } = isWithinRadius(latitude, longitude);
+    const message = 'Hari Sabtu dan Minggu libur. Tidak dapat melakukan presensi.';
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'outside_hours', message);
+    return {
+      success: false,
+      message,
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'outside_hours',
+    };
+  }
+
+  // 0.5 Get active shift for this pegawai
+  const shift = await getActiveShift(pegawaiId, user_type, type);
+
+  // 0.6 Check allowed days for checkin
   if (type === 'checkin' && shift && shift.allowed_days) {
-    const currentDay = now.getDay().toString();
+    const currentDay = currentDayNum.toString();
     const allowedDaysArr = shift.allowed_days.split(',');
     if (!allowedDaysArr.includes(currentDay)) {
       const { distance } = isWithinRadius(latitude, longitude);

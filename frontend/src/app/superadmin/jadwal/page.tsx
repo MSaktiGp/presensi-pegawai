@@ -16,17 +16,28 @@ interface Shift {
   late_threshold_minutes: number;
   allowed_days: string;
 }
-interface Petugas { id: number; nama: string; username: string; user_type: string; shift_config_id: number | null }
+
 
 const TYPE_LABEL: Record<string, string> = { pegawai_gerai: 'Pegawai Gerai', satpam: 'Satpam', cs: 'Cleaning Service', resepsionis: 'Resepsionis' };
-const EMPTY = { nama_shift: '', user_type: 'satpam', jam_masuk: '07:00', jam_keluar: '15:00', is_cross_midnight: false, late_threshold_minutes: 60, allowed_days: '0,1,2,3,4,5,6' };
+const FILTER_TYPE_LABEL: Record<string, string> = { '': 'Semua', ...TYPE_LABEL };
+const EMPTY = { nama_shift: '', user_type: 'pegawai_gerai', jam_masuk: '07:00', jam_keluar: '15:00', is_cross_midnight: false, late_threshold_minutes: 60, allowed_days: '1,2,3,4,5' };
+
+const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const formatDays = (daysStr: string) => {
+  if (!daysStr) return 'Tidak ada';
+  const parts = daysStr.split(',').map(Number).sort();
+  if (parts.length === 7) return 'Setiap Hari';
+  const isSeninJumat = parts.length === 5 && !parts.includes(0) && !parts.includes(6);
+  if (isSeninJumat) return 'Senin - Jumat';
+  return parts.map(p => DAYS[p].slice(0, 3)).join(', ');
+};
 
 export default function JadwalPage() {
   const allowed = useRoleGuard(['superadmin']);
 
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [petugas, setPetugas] = useState<Petugas[]>([]);
-  const [filterType, setFilterType] = useState('satpam');
+
+  const [filterType, setFilterType] = useState('');
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -36,12 +47,8 @@ export default function JadwalPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [s, p] = await Promise.all([
-      api<Shift[]>('/superadmin/shifts'),
-      api<Petugas[]>('/superadmin/pegawai?is_active=true'),
-    ]);
+    const s = await api<Shift[]>('/superadmin/shifts');
     if (s.success && s.data) setShifts(s.data);
-    if (p.success && p.data) setPetugas(p.data);
     setLoading(false);
   }, []);
 
@@ -52,7 +59,7 @@ export default function JadwalPage() {
     setTimeout(() => setNotice(null), 3500);
   };
 
-  const openNew = () => { setForm({ ...EMPTY, user_type: filterType }); setEditing('new'); };
+  const openNew = () => { setForm({ ...EMPTY, user_type: filterType || 'pegawai_gerai' }); setEditing('new'); };
   const openEdit = (s: Shift) => {
     setForm({ ...s, jam_masuk: s.jam_masuk.slice(0, 5), jam_keluar: s.jam_keluar.slice(0, 5) });
     setEditing(s);
@@ -77,18 +84,14 @@ export default function JadwalPage() {
     if (r.success) load();
   };
 
-  const assign = async (p: Petugas, shiftId: number) => {
-    const r = await api('/superadmin/shifts/assign', { method: 'POST', body: { pegawai_id: p.id, shift_config_id: shiftId } });
-    flash(r.success, r.success ? `Shift ${p.nama} diperbarui.` : r.message);
-    if (r.success) setPetugas((list) => list.map((x) => (x.id === p.id ? { ...x, shift_config_id: shiftId } : x)));
-  };
+
 
   if (!allowed) {
     return <div className="min-h-screen flex items-center justify-center"><div className="spinner !w-10 !h-10" /></div>;
   }
 
-  const shiftsOfType = shifts.filter((s) => s.user_type === filterType);
-  const petugasOfType = petugas.filter((p) => p.user_type === filterType);
+  const shiftsOfType = filterType ? shifts.filter((s) => s.user_type === filterType) : shifts;
+
 
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
@@ -96,7 +99,7 @@ export default function JadwalPage() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-fade-in">
           <div>
             <h1 className="text-2xl font-bold text-[var(--primary-dark)]">Kelola Jadwal</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Atur shift kerja dan penugasan jadwal petugas</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Atur shift jadwal petugas</p>
           </div>
           <button onClick={openNew} className="btn btn-primary text-sm min-h-[44px]">
             <HiPlus className="w-4 h-4" /> Tambah Shift
@@ -108,7 +111,7 @@ export default function JadwalPage() {
         )}
 
         <div className="card p-2 flex gap-1 flex-wrap">
-          {Object.entries(TYPE_LABEL).map(([value, label]) => (
+          {Object.entries(FILTER_TYPE_LABEL).map(([value, label]) => (
             <button
               key={value}
               onClick={() => setFilterType(value)}
@@ -122,58 +125,28 @@ export default function JadwalPage() {
         {loading ? (
           <div className="flex justify-center py-16"><div className="spinner !w-8 !h-8" /></div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="space-y-5">
             {/* Shift definitions */}
-            <section className="lg:col-span-2 space-y-3">
+            <section className="space-y-3">
               <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--text-muted)]">Daftar Shift</h2>
               {shiftsOfType.length === 0 && <p className="card p-6 text-center text-sm text-[var(--text-muted)]">Belum ada shift untuk tipe ini.</p>}
               {shiftsOfType.map((s) => (
                 <div key={s.id} className="card p-4 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold capitalize text-[var(--text-primary)] flex items-center gap-1.5">
-                      {s.nama_shift} {s.is_cross_midnight && <HiMoon className="w-4 h-4 text-[var(--primary-medium)]" title="Lintas tengah malam" />}
+                      {s.nama_shift} <span className="text-xs font-normal text-[var(--text-secondary)] bg-[var(--bg-gray-light)] px-2 py-0.5 rounded-full">{TYPE_LABEL[s.user_type]}</span> {s.is_cross_midnight && <HiMoon className="w-4 h-4 text-[var(--primary-medium)]" title="Lintas tengah malam" />}
                     </p>
                     <p className="text-lg font-mono font-bold text-[var(--primary-dark)] tabular-nums">
                       {s.jam_masuk.slice(0, 5)} – {s.jam_keluar.slice(0, 5)}
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">Toleransi terlambat {s.late_threshold_minutes} menit</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      Hari: <span className="font-medium text-[var(--text-secondary)]">{formatDays(s.allowed_days)}</span> &bull; Toleransi: {s.late_threshold_minutes} mnt
+                    </p>
                   </div>
                   <button onClick={() => openEdit(s)} aria-label={`Ubah shift ${s.nama_shift}`} className="p-2 rounded-lg text-[var(--primary-dark)] hover:bg-[var(--primary-light)]"><HiPencilSquare className="w-5 h-5" /></button>
                   <button onClick={() => remove(s)} aria-label={`Hapus shift ${s.nama_shift}`} className="p-2 rounded-lg text-[var(--accent-red)] hover:bg-[var(--accent-red-light)]"><HiTrash className="w-5 h-5" /></button>
                 </div>
               ))}
-            </section>
-
-            {/* Assignment */}
-            <section className="lg:col-span-3 space-y-3">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--text-muted)]">Penugasan Petugas ({petugasOfType.length})</h2>
-              <div className="card overflow-hidden">
-                {petugasOfType.length === 0 ? (
-                  <p className="text-center py-10 text-sm text-[var(--text-muted)]">Tidak ada petugas aktif.</p>
-                ) : (
-                  <ul className="divide-y divide-[var(--border-light)]">
-                    {petugasOfType.map((p) => (
-                      <li key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--primary-light)]/40 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-[var(--text-primary)] truncate">{p.nama}</p>
-                          <p className="text-xs text-[var(--text-muted)] font-mono">@{p.username}</p>
-                        </div>
-                        <select
-                          aria-label={`Shift untuk ${p.nama}`}
-                          value={p.shift_config_id ?? ''}
-                          onChange={(e) => assign(p, Number(e.target.value))}
-                          className={`input text-sm !py-2 !w-auto min-w-[150px] ${p.shift_config_id ? '' : '!border-[var(--warning-orange)]'}`}
-                        >
-                          <option value="" disabled>Belum ada shift</option>
-                          {shiftsOfType.map((s) => (
-                            <option key={s.id} value={s.id}>{s.nama_shift} ({s.jam_masuk.slice(0, 5)}–{s.jam_keluar.slice(0, 5)})</option>
-                          ))}
-                        </select>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
             </section>
           </div>
         )}
@@ -209,7 +182,7 @@ export default function JadwalPage() {
             <label className="block">
               <span className="block text-xs font-semibold text-[var(--text-muted)] mb-1">Hari Kerja *</span>
               <div className="flex flex-wrap gap-2">
-                {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((day, idx) => {
+                {DAYS.map((day, idx) => {
                   const allowed = form.allowed_days ? form.allowed_days.split(',') : [];
                   const isChecked = allowed.includes(String(idx));
                   return (

@@ -57,8 +57,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (['pegawai_gerai', 'satpam', 'cs', 'resepsionis'].includes(pegawai.user_type)) {
       const shiftResult = await query(
         `SELECT sc.id as shift_config_id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
-                sc.is_cross_midnight, sc.late_threshold_minutes
-         FROM pegawai_shift_assignment psa
+                sc.is_cross_midnight, sc.late_threshold_minutes, sc.allowed_days
+        FROM pegawai_shift_assignment psa
          JOIN shift_config sc ON psa.shift_config_id = sc.id
          WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
          ORDER BY psa.created_at DESC
@@ -75,6 +75,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           jam_keluar: s.jam_keluar,
           is_cross_midnight: s.is_cross_midnight,
           late_threshold_minutes: s.late_threshold_minutes,
+          allowed_days: s.allowed_days,
         };
       }
     }

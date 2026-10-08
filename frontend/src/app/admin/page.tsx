@@ -138,7 +138,7 @@ export default function DashboardPage() {
             </button>
             <button onClick={() => router.push('/superadmin/jadwal')} className="card p-4 text-left hover:border-[var(--primary-dark)] transition-colors">
               <p className="font-semibold text-[var(--primary-dark)]">Kelola Jadwal →</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">Atur shift dan penugasan jadwal petugas</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Atur shift jadwal petugas</p>
             </button>
           </div>
         )}

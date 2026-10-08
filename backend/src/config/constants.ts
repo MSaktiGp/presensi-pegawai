@@ -51,7 +51,7 @@ export const CONFIG = {
 
   // Rate Limit
   RATE_LIMIT_WINDOW_MS: 60 * 1000, // 1 minute
-  RATE_LIMIT_MAX: 10, // 10 requests per minute
+  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX || '1500'), // 1500 requests per minute (accommodates ~40 users sharing 1 office IP)
 };
 
 // Role constants

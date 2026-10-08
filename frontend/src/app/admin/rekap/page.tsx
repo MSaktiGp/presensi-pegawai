@@ -230,7 +230,7 @@ export default function RekapPage() {
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                   placeholder="Cari Nama Petugas.."
-                  className="input text-sm min-h-[44px] pl-9"
+                  className="input text-sm min-h-[44px] !pl-9"
                 />
               </div>
             </div>

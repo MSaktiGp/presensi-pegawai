@@ -181,7 +181,7 @@ export const listPegawai = async (req: Request, res: Response): Promise<void> =>
 
 export const createPegawai = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nama, username, departemen, email, password, user_type, sub_type, gerai_id } = req.body;
+    const { nama, username, departemen, email, password, user_type, sub_type, gerai_id, shift_config_id } = req.body;
 
     if (!nama || !username || !user_type) {
       res.status(400).json({ success: false, message: 'Nama, username, dan tipe user wajib diisi.' });
@@ -213,6 +213,14 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
       [nama, username, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, gerai_id || null]
     );
 
+    if (shift_config_id) {
+      await query(
+        `INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active)
+         VALUES ($1, $2, CURRENT_DATE, TRUE)`,
+        [result.rows[0].id, shift_config_id]
+      );
+    }
+
     logger.info('Pegawai created', { nama, username, user_type });
     res.json({ success: true, message: 'Pegawai berhasil ditambahkan.', data: result.rows[0] });
   } catch (error) {
@@ -224,7 +232,7 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
 export const updatePegawai = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nama, username, departemen, email, sub_type } = req.body;
+    const { nama, username, departemen, email, sub_type, shift_config_id } = req.body;
 
     const result = await query(
       `UPDATE pegawai SET 
@@ -241,6 +249,25 @@ export const updatePegawai = async (req: Request, res: Response): Promise<void> 
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
       return;
+    }
+
+    if (shift_config_id !== undefined) {
+      const currentShift = await query(
+        `SELECT shift_config_id FROM pegawai_shift_assignment WHERE pegawai_id = $1 AND is_active = TRUE`,
+        [id]
+      );
+      const currentShiftId = currentShift.rows.length > 0 ? currentShift.rows[0].shift_config_id : null;
+      
+      if (shift_config_id && String(currentShiftId) !== String(shift_config_id)) {
+        await query(`UPDATE pegawai_shift_assignment SET is_active = FALSE WHERE pegawai_id = $1 AND is_active = TRUE`, [id]);
+        await query(
+          `INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active)
+           VALUES ($1, $2, CURRENT_DATE, TRUE)`,
+          [id, shift_config_id]
+        );
+      } else if (!shift_config_id && currentShiftId) {
+        await query(`UPDATE pegawai_shift_assignment SET is_active = FALSE WHERE pegawai_id = $1 AND is_active = TRUE`, [id]);
+      }
     }
 
     logger.info('Pegawai updated', { id });

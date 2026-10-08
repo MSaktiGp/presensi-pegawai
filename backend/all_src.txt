@@ -1,0 +1,2443 @@
+﻿
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\config\constants.ts ---
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+export const CONFIG = {
+  // Office Location - DPMPTSP Kota Jambi
+  OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
+  OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
+  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'),
+
+  // Timezone WIB (UTC+7)
+  TIMEZONE: 'Asia/Jakarta',
+
+  // Default office hours (07:30 - 16:30 WIB)
+  // Note: Actual shift hours are now driven by shift_config table in DB.
+  // These constants serve as fallback defaults only.
+  DEFAULT_CHECKIN_HOUR: 7,
+  DEFAULT_CHECKIN_MINUTE: 30,
+  DEFAULT_CHECKOUT_HOUR: 16,
+  DEFAULT_CHECKOUT_MINUTE: 30,
+
+  // Checkin late threshold (legacy fallback â€” now per-shift via DB)
+  CHECKIN_LATE_HOUR: 9,
+  CHECKIN_LATE_MINUTE: 0,
+
+  // Checkout restrictions (legacy fallback â€” now per-shift via DB)
+  CHECKOUT_START_HOUR: 16,
+  CHECKOUT_START_MINUTE: 30,
+  FRIDAY_CHECKOUT_START_HOUR: 11,
+  FRIDAY_CHECKOUT_START_MINUTE: 0,
+
+  // Duplicate Prevention
+  DUPLICATE_WINDOW_MINUTES: 30,
+
+  // JWT
+  JWT_SECRET: process.env.JWT_SECRET || 'dpmptsp-jambi-secret',
+  JWT_EXPIRY: process.env.JWT_EXPIRY || '24h',
+
+  // Photo
+  PHOTO_QUALITY: 60,
+  PHOTO_MAX_WIDTH: 800,
+  UPLOAD_DIR: 'uploads/attendance',
+
+  // Server
+  PORT: parseInt(process.env.PORT || '5000'),
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+
+  // Rate Limit
+  RATE_LIMIT_WINDOW_MS: 60 * 1000, // 1 minute
+  RATE_LIMIT_MAX: 10, // 10 requests per minute
+};
+
+// Role constants
+export const ROLES = {
+  PEGAWAI_GERAI: 'pegawai_gerai',
+  SATPAM: 'satpam',
+  CS: 'cs',
+  ADMIN: 'admin',
+  SUPERADMIN: 'superadmin',
+} as const;
+
+export type Role = typeof ROLES[keyof typeof ROLES];
+
+// User type constants (same values as roles for normal users)
+export const USER_TYPES = {
+  PEGAWAI_GERAI: 'pegawai_gerai',
+  SATPAM: 'satpam',
+  CS: 'cs',
+} as const;
+
+export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES];
+
+// CS sub-types
+export const CS_SUB_TYPES = {
+  RESEPSIONIS: 'resepsionis',
+  CLEANING_SERVICE: 'cleaning_service',
+} as const;
+
+// Roles that can perform attendance
+export const ATTENDANCE_ROLES: Role[] = [ROLES.PEGAWAI_GERAI, ROLES.SATPAM, ROLES.CS];
+
+// Roles that can access admin dashboard
+export const ADMIN_ROLES: Role[] = [ROLES.ADMIN, ROLES.SUPERADMIN];
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\config\database.memory.ts ---
+
+/**
+ * In-Memory Database for Development (tanpa PostgreSQL).
+ * 
+ * Simulates the PostgreSQL database using in-memory arrays.
+ * Data will reset setiap kali server restart.
+ * 
+ * Gunakan ini untuk development/demo. Untuk production, gunakan PostgreSQL.
+ */
+import bcrypt from 'bcryptjs';
+import { logger } from '../utils/logger';
+
+// ============================================
+// Types
+// ============================================
+interface Pegawai {
+  id: number;
+  nama: string;
+  nip: string;
+  departemen: string;
+  email: string;
+  password_hash: string;
+  role: string;
+}
+
+interface Attendance {
+  id: number;
+  pegawai_id: number;
+  date: string;
+  checkin_time: string | null;
+  checkin_latitude: number | null;
+  checkin_longitude: number | null;
+  checkin_distance_from_office: number | null;
+  checkin_photo_path: string | null;
+  checkin_status: string | null;
+  checkout_time: string | null;
+  checkout_latitude: number | null;
+  checkout_longitude: number | null;
+  checkout_distance_from_office: number | null;
+  checkout_photo_path: string | null;
+  checkout_status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AttemptLog {
+  id: number;
+  pegawai_id: number;
+  attempt_time: string;
+  attempt_type: string;
+  latitude: number;
+  longitude: number;
+  distance_from_office: number;
+  status: string;
+  error_message: string | null;
+}
+
+// ============================================
+// In-Memory Storage
+// ============================================
+let pegawaiData: Pegawai[] = [];
+let attendanceData: Attendance[] = [];
+let attemptLogData: AttemptLog[] = [];
+let attendanceIdCounter = 1;
+let attemptLogIdCounter = 1;
+
+// ============================================
+// Initialize seed data
+// ============================================
+const initSeedData = async () => {
+  const hash = await bcrypt.hash('password123', 10);
+
+  pegawaiData = [
+    { id: 1, nama: 'Administrator', nip: '100001', departemen: 'IT', email: 'admin@dpmptsp-jambi.go.id', password_hash: hash, role: 'admin' },
+    { id: 2, nama: 'Ahmad Fauzi', nip: '200001', departemen: 'Perizinan', email: 'ahmad.fauzi@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 3, nama: 'Siti Nurhaliza', nip: '200002', departemen: 'Perizinan', email: 'siti.nurhaliza@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 4, nama: 'Budi Santoso', nip: '200003', departemen: 'Pelayanan', email: 'budi.santoso@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 5, nama: 'Dewi Lestari', nip: '200004', departemen: 'Pelayanan', email: 'dewi.lestari@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 6, nama: 'Rudi Hartono', nip: '200005', departemen: 'TU', email: 'rudi.hartono@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 7, nama: 'Maya Anggraini', nip: '200006', departemen: 'TU', email: 'maya.anggraini@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 8, nama: 'Eko Prasetyo', nip: '200007', departemen: 'IT', email: 'eko.prasetyo@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 9, nama: 'Rina Wati', nip: '200008', departemen: 'Perizinan', email: 'rina.wati@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 10, nama: 'Hendra Gunawan', nip: '200009', departemen: 'Pelayanan', email: 'hendra.gunawan@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+    { id: 11, nama: 'Lina Mariana', nip: '200010', departemen: 'TU', email: 'lina.mariana@dpmptsp-jambi.go.id', password_hash: hash, role: 'pegawai' },
+  ];
+
+  logger.info(`ðŸ“¦ In-memory DB initialized with ${pegawaiData.length} pegawai (password: password123)`);
+};
+
+// Initialize on import
+const initPromise = initSeedData();
+
+// ============================================
+// Query simulator â€” mimics pg.Pool.query()
+// ============================================
+interface QueryResult {
+  rows: any[];
+  rowCount: number;
+}
+
+export const query = async (text: string, params?: any[]): Promise<QueryResult> => {
+  await initPromise; // Ensure seed data is ready
+
+  const sql = text.trim().toUpperCase();
+
+  // ---- SELECT from pegawai ----
+  if (sql.startsWith('SELECT') && sql.includes('FROM PEGAWAI')) {
+    if (sql.includes('WHERE NIP')) {
+      const nip = params?.[0];
+      const rows = pegawaiData.filter(p => p.nip === nip);
+      return { rows, rowCount: rows.length };
+    }
+    if (sql.includes('WHERE ID') || sql.includes('WHERE P.ID')) {
+      const id = params?.[0];
+      const rows = pegawaiData.filter(p => p.id === Number(id));
+      return { rows, rowCount: rows.length };
+    }
+    return { rows: pegawaiData, rowCount: pegawaiData.length };
+  }
+
+  // ---- SELECT from attendance (today-status) ----
+  if (sql.startsWith('SELECT') && sql.includes('FROM ATTENDANCE') && !sql.includes('JOIN')) {
+    const pegawai_id = params?.[0];
+    const date = params?.[1];
+    const rows = attendanceData.filter(a => a.pegawai_id === Number(pegawai_id) && a.date === date);
+    return { rows, rowCount: rows.length };
+  }
+
+  // ---- INSERT INTO attendance_attempt_log ----
+  if (sql.includes('INSERT INTO ATTENDANCE_ATTEMPT_LOG')) {
+    const log: AttemptLog = {
+      id: attemptLogIdCounter++,
+      pegawai_id: params?.[0],
+      attempt_time: new Date().toISOString(),
+      attempt_type: params?.[1],
+      latitude: params?.[2],
+      longitude: params?.[3],
+      distance_from_office: params?.[4],
+      status: params?.[5],
+      error_message: params?.[6] || null,
+    };
+    attemptLogData.push(log);
+    return { rows: [log], rowCount: 1 };
+  }
+
+  // ---- INSERT INTO attendance (with ON CONFLICT / upsert) ----
+  if (sql.includes('INSERT INTO ATTENDANCE')) {
+    const pegawai_id = Number(params?.[0]);
+    const date = String(params?.[1]);
+    const isCheckin = sql.includes('CHECKIN_TIME');
+    
+    let existing = attendanceData.find(a => a.pegawai_id === pegawai_id && a.date === date);
+    
+    if (existing) {
+      // UPDATE existing
+      if (isCheckin) {
+        existing.checkin_time = new Date().toISOString();
+        existing.checkin_latitude = params?.[2];
+        existing.checkin_longitude = params?.[3];
+        existing.checkin_distance_from_office = params?.[4];
+        existing.checkin_photo_path = params?.[5];
+        existing.checkin_status = params?.[6];
+      } else {
+        existing.checkout_time = new Date().toISOString();
+        existing.checkout_latitude = params?.[2];
+        existing.checkout_longitude = params?.[3];
+        existing.checkout_distance_from_office = params?.[4];
+        existing.checkout_photo_path = params?.[5];
+        existing.checkout_status = params?.[6];
+      }
+      existing.updated_at = new Date().toISOString();
+      return { rows: [existing], rowCount: 1 };
+    } else {
+      // INSERT new
+      const now = new Date().toISOString();
+      const newRecord: Attendance = {
+        id: attendanceIdCounter++,
+        pegawai_id,
+        date,
+        checkin_time: isCheckin ? now : null,
+        checkin_latitude: isCheckin ? params?.[2] : null,
+        checkin_longitude: isCheckin ? params?.[3] : null,
+        checkin_distance_from_office: isCheckin ? params?.[4] : null,
+        checkin_photo_path: isCheckin ? params?.[5] : null,
+        checkin_status: isCheckin ? params?.[6] : null,
+        checkout_time: !isCheckin ? now : null,
+        checkout_latitude: !isCheckin ? params?.[2] : null,
+        checkout_longitude: !isCheckin ? params?.[3] : null,
+        checkout_distance_from_office: !isCheckin ? params?.[4] : null,
+        checkout_photo_path: !isCheckin ? params?.[5] : null,
+        checkout_status: !isCheckin ? params?.[6] : null,
+        created_at: now,
+        updated_at: now,
+      };
+      attendanceData.push(newRecord);
+      return { rows: [newRecord], rowCount: 1 };
+    }
+  }
+
+  // ---- Admin: SELECT with JOIN (attendance report) ----
+  if (sql.includes('FROM PEGAWAI P') && sql.includes('LEFT JOIN ATTENDANCE')) {
+    const reportDate = params?.[0];
+    const pegawai_id_filter = params?.[1] ? Number(params[1]) : null;
+    const dept_filter = params?.[2] ? String(params[2]) : null;
+
+    let filteredPegawai = pegawaiData.filter(p => p.role !== 'admin');
+    
+    if (pegawai_id_filter) {
+      filteredPegawai = filteredPegawai.filter(p => p.id === pegawai_id_filter);
+    }
+    if (dept_filter) {
+      filteredPegawai = filteredPegawai.filter(p => p.departemen === dept_filter);
+    }
+
+    const rows = filteredPegawai.map(p => {
+      const att = attendanceData.find(a => a.pegawai_id === p.id && a.date === reportDate);
+      return {
+        pegawai_id: p.id,
+        nama: p.nama,
+        nip: p.nip,
+        departemen: p.departemen,
+        checkin_time: att?.checkin_time || null,
+        checkin_status: att?.checkin_status || null,
+        checkin_distance_from_office: att?.checkin_distance_from_office || null,
+        checkin_photo_path: att?.checkin_photo_path || null,
+        checkout_time: att?.checkout_time || null,
+        checkout_status: att?.checkout_status || null,
+        checkout_distance_from_office: att?.checkout_distance_from_office || null,
+        checkout_photo_path: att?.checkout_photo_path || null,
+      };
+    });
+
+    return { rows, rowCount: rows.length };
+  }
+
+  // ---- Admin: Attempt logs ----
+  if (sql.includes('FROM ATTENDANCE_ATTEMPT_LOG')) {
+    const reportDate = params?.[0];
+    const pegawai_id_filter = params?.[1] ? Number(params[1]) : null;
+
+    let logs = attemptLogData.filter(l => l.attempt_time.startsWith(reportDate));
+    
+    if (pegawai_id_filter) {
+      logs = logs.filter(l => l.pegawai_id === pegawai_id_filter);
+    }
+
+    const rows = logs.map(l => {
+      const p = pegawaiData.find(pg => pg.id === l.pegawai_id);
+      return {
+        ...l,
+        nama: p?.nama || 'Unknown',
+        nip: p?.nip || '',
+      };
+    });
+
+    return { rows, rowCount: rows.length };
+  }
+
+  // Fallback
+  logger.warn('Unhandled in-memory query', { sql: text.substring(0, 100) });
+  return { rows: [], rowCount: 0 };
+};
+
+export const getClient = async () => {
+  return { query, release: () => {} };
+};
+
+export default { query, connect: getClient };
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\config\database.ts ---
+
+import dotenv from 'dotenv';
+import { logger } from '../utils/logger';
+
+dotenv.config();
+
+const USE_MEMORY_DB =
+  process.env.USE_MEMORY_DB === 'true' ||
+  (!process.env.DATABASE_URL && !process.env.DB_HOST);
+
+let queryFn: (text: string, params?: any[]) => Promise<any>;
+let getClientFn: () => Promise<any>;
+
+if (USE_MEMORY_DB) {
+  // Use in-memory database (no PostgreSQL required)
+  logger.info('ðŸ—ƒï¸  Using IN-MEMORY database (development mode)');
+  const memDb = require('./database.memory');
+  queryFn = memDb.query;
+  getClientFn = memDb.getClient;
+} else {
+  // Use real PostgreSQL (Supabase or local)
+  const { Pool } = require('pg');
+
+  let pool: any;
+
+  if (process.env.DATABASE_URL) {
+    // Supabase / cloud PostgreSQL via connection string
+    logger.info('ðŸ˜ Connecting to PostgreSQL via DATABASE_URL (Supabase)');
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+  } else {
+    // Local PostgreSQL via individual env vars
+    logger.info('ðŸ˜ Connecting to local PostgreSQL');
+    pool = new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      database: process.env.DB_NAME || 'presensi_dpmptsp',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    });
+  }
+
+  pool.on('connect', () => {
+    logger.info('âœ… Connected to PostgreSQL database');
+  });
+
+  pool.on('error', (err: Error) => {
+    logger.error('Unexpected error on idle client', err);
+  });
+
+  queryFn = (text: string, params?: any[]) => pool.query(text, params);
+  getClientFn = () => pool.connect();
+}
+
+export const query = queryFn;
+export const getClient = getClientFn;
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\config\supabase.ts ---
+
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { logger } from '../utils/logger';
+
+dotenv.config();
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+let supabase: SupabaseClient | null = null;
+
+if (supabaseUrl && supabaseServiceKey) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+  logger.info('âœ… Supabase client initialized');
+} else {
+  logger.warn('âš ï¸  SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set â€” Supabase Storage unavailable');
+}
+
+export const getSupabase = (): SupabaseClient | null => supabase;
+
+export const STORAGE_BUCKET = 'attendance-photos';
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\controllers\admin.controller.ts ---
+
+import { Request, Response } from 'express';
+import { query } from '../config/database';
+import { CONFIG } from '../config/constants';
+import { sendSuccess, sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+/** Get today's date string (YYYY-MM-DD) in WIB timezone. */
+const getWIBDateString = (): string => {
+  const now = new Date();
+  const wib = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+  const year = wib.getFullYear();
+  const month = String(wib.getMonth() + 1).padStart(2, '0');
+  const day = String(wib.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const getAttendanceReport = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { date, pegawai_id, departemen, user_type } = req.query;
+    const reportDate = date ? String(date) : getWIBDateString();
+
+    let sql = `
+      SELECT 
+        p.id as pegawai_id,
+        p.nama,
+        p.username,
+        p.nip,
+        p.departemen,
+        p.user_type,
+        p.sub_type,
+        g.kode_gerai,
+        sc.nama_shift,
+        a.checkin_time,
+        a.checkin_status,
+        a.checkin_distance_from_office,
+        a.checkin_photo_path,
+        a.checkout_time,
+        a.checkout_status,
+        a.checkout_distance_from_office,
+        a.checkout_photo_path
+      FROM pegawai p
+      LEFT JOIN attendance a ON p.id = a.pegawai_id AND a.date = $1
+      LEFT JOIN gerai g ON p.gerai_id = g.id
+      LEFT JOIN pegawai_shift_assignment psa ON p.id = psa.pegawai_id AND psa.is_active = TRUE
+      LEFT JOIN shift_config sc ON psa.shift_config_id = sc.id
+      WHERE p.is_active = TRUE
+        AND p.role NOT IN ('admin', 'superadmin')
+    `;
+    const params: any[] = [reportDate];
+
+    if (pegawai_id) {
+      params.push(Number(pegawai_id));
+      sql += ` AND p.id = $${params.length}`;
+    }
+
+    if (departemen) {
+      params.push(String(departemen));
+      sql += ` AND p.departemen = $${params.length}`;
+    }
+
+    if (user_type && user_type !== 'all') {
+      params.push(String(user_type));
+      sql += ` AND p.user_type = $${params.length}`;
+    }
+
+    sql += ' ORDER BY p.user_type, p.nama ASC';
+
+    const result = await query(sql, params);
+
+    const report = result.rows.map((row: Record<string, any>) => ({
+      pegawai_id: row.pegawai_id,
+      nama: row.nama,
+      username: row.username,
+      nip: row.nip,
+      departemen: row.departemen,
+      user_type: row.user_type,
+      sub_type: row.sub_type,
+      kode_gerai: row.kode_gerai,
+      nama_shift: row.nama_shift,
+      checkin: row.checkin_time
+        ? {
+            time: row.checkin_time,
+            status: row.checkin_status,
+            distance: row.checkin_distance_from_office,
+            photo: row.checkin_photo_path,
+          }
+        : null,
+      checkout: row.checkout_time
+        ? {
+            time: row.checkout_time,
+            status: row.checkout_status,
+            distance: row.checkout_distance_from_office,
+            photo: row.checkout_photo_path,
+          }
+        : null,
+    }));
+
+    // Summary stats per user_type
+    const summaryByType = (type: string) => {
+      const filtered = report.filter((r: any) => r.user_type === type);
+      return {
+        total: filtered.length,
+        hadir: filtered.filter((r: any) => r.checkin !== null).length,
+        tidak_hadir: filtered.filter((r: any) => r.checkin === null).length,
+        terlambat: filtered.filter((r: any) => r.checkin?.status === 'late').length,
+        sudah_pulang: filtered.filter((r: any) => r.checkout !== null).length,
+      };
+    };
+
+    const totalPegawai = report.length;
+    const hadirCount = report.filter((r: any) => r.checkin !== null).length;
+    const tidakHadirCount = totalPegawai - hadirCount;
+    const terlambatCount = report.filter((r: any) => r.checkin?.status === 'late').length;
+    const sudahPulangCount = report.filter((r: any) => r.checkout !== null).length;
+
+    sendSuccess(res, {
+      date: reportDate,
+      summary: {
+        total_pegawai: totalPegawai,
+        hadir: hadirCount,
+        tidak_hadir: tidakHadirCount,
+        terlambat: terlambatCount,
+        sudah_pulang: sudahPulangCount,
+      },
+      summary_by_type: {
+        pegawai_gerai: summaryByType('pegawai_gerai'),
+        satpam: summaryByType('satpam'),
+        cs: summaryByType('cs'),
+      },
+      report,
+    });
+  } catch (error) {
+    logger.error('Get attendance report error', { error });
+    sendError(res, 'Gagal mengambil laporan presensi.', 500);
+  }
+};
+
+/**
+ * Monthly attendance chart data â€” aggregated by day for a given month.
+ * Returns daily counts of hadir, terlambat, tidak_hadir per user_type.
+ */
+export const getMonthlyChart = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { month, year, user_type } = req.query;
+
+    const now = new Date();
+    const wib = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+    const targetMonth = month ? Number(month) : wib.getMonth() + 1;
+    const targetYear = year ? Number(year) : wib.getFullYear();
+
+    // Get number of days in the target month
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+
+    // Build user_type filter
+    let typeFilter = '';
+    const params: any[] = [targetYear, targetMonth];
+
+    if (user_type && user_type !== 'all') {
+      params.push(String(user_type));
+      typeFilter = `AND p.user_type = $${params.length}`;
+    }
+
+    // Count total active employees (for calculating tidak_hadir)
+    const totalResult = await query(
+      `SELECT COUNT(*) as total FROM pegawai p 
+       WHERE p.is_active = TRUE AND p.role NOT IN ('admin', 'superadmin')
+       ${typeFilter}`,
+      user_type && user_type !== 'all' ? [user_type] : []
+    );
+    const totalPegawai = parseInt(totalResult.rows[0].total);
+
+    // Get daily attendance counts
+    const chartResult = await query(
+      `SELECT 
+        EXTRACT(DAY FROM a.date) as day,
+        COUNT(CASE WHEN a.checkin_status = 'success' THEN 1 END) as hadir,
+        COUNT(CASE WHEN a.checkin_status = 'late' THEN 1 END) as terlambat,
+        COUNT(CASE WHEN a.checkin_status IS NOT NULL THEN 1 END) as total_checkin
+       FROM attendance a
+       JOIN pegawai p ON a.pegawai_id = p.id
+       WHERE EXTRACT(YEAR FROM a.date) = $1
+         AND EXTRACT(MONTH FROM a.date) = $2
+         AND p.is_active = TRUE
+         AND p.role NOT IN ('admin', 'superadmin')
+         ${typeFilter}
+       GROUP BY EXTRACT(DAY FROM a.date)
+       ORDER BY day`,
+      params
+    );
+
+    // Build chart data for all days in month
+    const chartData = [];
+    const attendanceMap = new Map<number, any>(
+      chartResult.rows.map((row: any) => [parseInt(row.day), row])
+    );
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayData = attendanceMap.get(day);
+      const hadir = dayData ? parseInt(dayData.hadir) : 0;
+      const terlambat = dayData ? parseInt(dayData.terlambat) : 0;
+      const tidakHadir = totalPegawai - (hadir + terlambat);
+
+      chartData.push({
+        day,
+        date: `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        hadir,
+        terlambat,
+        tidak_hadir: Math.max(0, tidakHadir),
+      });
+    }
+
+    sendSuccess(res, {
+      month: targetMonth,
+      year: targetYear,
+      total_pegawai: totalPegawai,
+      chart: chartData,
+    });
+  } catch (error) {
+    logger.error('Monthly chart error', { error });
+    sendError(res, 'Gagal mengambil data grafik bulanan.', 500);
+  }
+};
+
+export const getAttemptLogs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { date, pegawai_id } = req.query;
+    const reportDate = date ? String(date) : getWIBDateString();
+
+    let sql = `
+      SELECT 
+        al.id,
+        al.pegawai_id,
+        p.nama,
+        p.username,
+        p.nip,
+        p.user_type,
+        al.attempt_time,
+        al.attempt_type,
+        al.latitude,
+        al.longitude,
+        al.distance_from_office,
+        al.status,
+        al.error_message
+      FROM attendance_attempt_log al
+      JOIN pegawai p ON al.pegawai_id = p.id
+      WHERE DATE(al.attempt_time) = $1
+    `;
+    const params: any[] = [reportDate];
+
+    if (pegawai_id) {
+      params.push(Number(pegawai_id));
+      sql += ` AND al.pegawai_id = $${params.length}`;
+    }
+
+    sql += ' ORDER BY al.attempt_time DESC';
+
+    const result = await query(sql, params);
+
+    sendSuccess(res, {
+      date: reportDate,
+      total: result.rows.length,
+      logs: result.rows,
+    });
+  } catch (error) {
+    logger.error('Get attempt logs error', { error });
+    sendError(res, 'Gagal mengambil log presensi.', 500);
+  }
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\controllers\attendance.controller.ts ---
+
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { attendanceSchema } from '../validators/attendance.validator';
+import { processAttendance, getTodayStatus } from '../services/attendance.service';
+import { CONFIG } from '../config/constants';
+import { sendSuccess, sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+export const checkin = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      sendError(res, 'Tidak terautentikasi.', 401);
+      return;
+    }
+
+    // Validate input
+    const validation = attendanceSchema.safeParse(req.body);
+    if (!validation.success) {
+      sendError(res, validation.error.issues[0].message);
+      return;
+    }
+
+    const { latitude, longitude, photo } = validation.data;
+
+    const result = await processAttendance(
+      req.user.id,
+      latitude,
+      longitude,
+      photo,
+      'checkin'
+    );
+
+    if (result.success) {
+      sendSuccess(res, result, result.message);
+    } else {
+      sendError(res, result.message);
+    }
+  } catch (error) {
+    logger.error('Checkin controller error', { error });
+    sendError(res, 'Terjadi kesalahan saat proses presensi masuk.', 500);
+  }
+};
+
+export const checkout = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      sendError(res, 'Tidak terautentikasi.', 401);
+      return;
+    }
+
+    // Validate input
+    const validation = attendanceSchema.safeParse(req.body);
+    if (!validation.success) {
+      sendError(res, validation.error.issues[0].message);
+      return;
+    }
+
+    const { latitude, longitude, photo } = validation.data;
+
+    const result = await processAttendance(
+      req.user.id,
+      latitude,
+      longitude,
+      photo,
+      'checkout'
+    );
+
+    if (result.success) {
+      sendSuccess(res, result, result.message);
+    } else {
+      sendError(res, result.message);
+    }
+  } catch (error) {
+    logger.error('Checkout controller error', { error });
+    sendError(res, 'Terjadi kesalahan saat proses presensi keluar.', 500);
+  }
+};
+
+export const getUserData = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      sendError(res, 'Tidak terautentikasi.', 401);
+      return;
+    }
+
+    sendSuccess(res, {
+      nama: req.user.nama,
+      username: req.user.username,
+      nip: req.user.nip,
+      departemen: req.user.departemen,
+      user_type: req.user.user_type,
+      sub_type: req.user.sub_type,
+      gerai_id: req.user.gerai_id,
+      office_location: {
+        latitude: CONFIG.OFFICE_LAT,
+        longitude: CONFIG.OFFICE_LNG,
+        max_radius: CONFIG.MAX_RADIUS_METERS,
+      },
+    });
+  } catch (error) {
+    logger.error('Get user data error', { error });
+    sendError(res, 'Gagal mengambil data pengguna.', 500);
+  }
+};
+
+export const todayStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      sendError(res, 'Tidak terautentikasi.', 401);
+      return;
+    }
+
+    const status = await getTodayStatus(req.user.id);
+    sendSuccess(res, status);
+  } catch (error) {
+    logger.error('Today status error', { error });
+    sendError(res, 'Gagal mengambil status presensi hari ini.', 500);
+  }
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\controllers\auth.controller.ts ---
+
+import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { query } from '../config/database';
+import { CONFIG } from '../config/constants';
+import { loginSchema } from '../validators/auth.validator';
+import { sendSuccess, sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+import { AuthRequest } from '../middleware/auth.middleware';
+
+export const login = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate input
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) {
+      sendError(res, validation.error.issues[0].message);
+      return;
+    }
+
+    const { username, password } = validation.data;
+
+    // Find pegawai by username (case-insensitive)
+    const result = await query(
+      `SELECT p.id, p.nama, p.username, p.nip, p.departemen, p.password_hash,
+              p.role, p.user_type, p.sub_type, p.gerai_id, p.is_active,
+              g.kode_gerai, g.nama_gerai
+       FROM pegawai p
+       LEFT JOIN gerai g ON p.gerai_id = g.id
+       WHERE LOWER(p.username) = LOWER($1)`,
+      [username]
+    );
+
+    if (result.rows.length === 0) {
+      logger.warn('Login attempt with unknown username', { username });
+      sendError(res, 'Username atau password salah.', 401);
+      return;
+    }
+
+    const pegawai = result.rows[0];
+
+    // Check if account is active
+    if (!pegawai.is_active) {
+      logger.warn('Login attempt on inactive account', { username });
+      sendError(res, 'Akun Anda sudah dinonaktifkan. Hubungi administrator.', 403);
+      return;
+    }
+
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, pegawai.password_hash);
+    if (!isPasswordValid) {
+      logger.warn('Login attempt with wrong password', { username });
+      sendError(res, 'Username atau password salah.', 401);
+      return;
+    }
+
+    // Get active shift assignment (for non-admin users)
+    let shiftInfo = null;
+    if (['pegawai_gerai', 'satpam', 'cs'].includes(pegawai.user_type)) {
+      const shiftResult = await query(
+        `SELECT sc.id as shift_config_id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
+                sc.is_cross_midnight, sc.late_threshold_minutes
+         FROM pegawai_shift_assignment psa
+         JOIN shift_config sc ON psa.shift_config_id = sc.id
+         WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
+         ORDER BY psa.created_at DESC
+         LIMIT 1`,
+        [pegawai.id]
+      );
+
+      if (shiftResult.rows.length > 0) {
+        const s = shiftResult.rows[0];
+        shiftInfo = {
+          id: s.shift_config_id,
+          nama: s.nama_shift,
+          jam_masuk: s.jam_masuk,
+          jam_keluar: s.jam_keluar,
+          is_cross_midnight: s.is_cross_midnight,
+          late_threshold_minutes: s.late_threshold_minutes,
+        };
+      }
+    }
+
+    // Generate JWT
+    const tokenPayload = {
+      id: pegawai.id,
+      username: pegawai.username,
+      nama: pegawai.nama,
+      nip: pegawai.nip,
+      departemen: pegawai.departemen,
+      role: pegawai.role,
+      user_type: pegawai.user_type,
+      sub_type: pegawai.sub_type || null,
+      gerai_id: pegawai.gerai_id || null,
+    };
+
+    const token = jwt.sign(tokenPayload, CONFIG.JWT_SECRET, {
+      expiresIn: CONFIG.JWT_EXPIRY as any,
+    });
+
+    logger.info('Login successful', { username, pegawaiId: pegawai.id, role: pegawai.role });
+
+    sendSuccess(res, {
+      token,
+      user: {
+        id: pegawai.id,
+        nama: pegawai.nama,
+        username: pegawai.username,
+        nip: pegawai.nip,
+        departemen: pegawai.departemen,
+        role: pegawai.role,
+        user_type: pegawai.user_type,
+        sub_type: pegawai.sub_type || null,
+        gerai: pegawai.gerai_id ? {
+          id: pegawai.gerai_id,
+          kode: pegawai.kode_gerai,
+          nama: pegawai.nama_gerai,
+        } : null,
+        shift: shiftInfo,
+      },
+    }, 'Login berhasil.');
+  } catch (error) {
+    logger.error('Login error', { error });
+    sendError(res, 'Terjadi kesalahan saat login. Silakan coba lagi.', 500);
+  }
+};
+
+export const logout = async (_req: Request, res: Response): Promise<void> => {
+  // JWT is stateless - client handles removal
+  sendSuccess(res, null, 'Logout berhasil.');
+};
+
+export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      sendError(res, 'Tidak terautentikasi.', 401);
+      return;
+    }
+
+    const result = await query(
+      `SELECT p.id, p.nama, p.username, p.nip, p.departemen, p.email,
+              p.role, p.user_type, p.sub_type, p.gerai_id, p.is_active,
+              g.kode_gerai, g.nama_gerai
+       FROM pegawai p
+       LEFT JOIN gerai g ON p.gerai_id = g.id
+       WHERE p.id = $1`,
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Data pegawai tidak ditemukan.', 404);
+      return;
+    }
+
+    const pegawai = result.rows[0];
+
+    // Get active shift
+    let shiftInfo = null;
+    const shiftResult = await query(
+      `SELECT sc.id as shift_config_id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
+              sc.is_cross_midnight, sc.late_threshold_minutes
+       FROM pegawai_shift_assignment psa
+       JOIN shift_config sc ON psa.shift_config_id = sc.id
+       WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
+       ORDER BY psa.created_at DESC
+       LIMIT 1`,
+      [req.user.id]
+    );
+
+    if (shiftResult.rows.length > 0) {
+      const s = shiftResult.rows[0];
+      shiftInfo = {
+        id: s.shift_config_id,
+        nama: s.nama_shift,
+        jam_masuk: s.jam_masuk,
+        jam_keluar: s.jam_keluar,
+        is_cross_midnight: s.is_cross_midnight,
+        late_threshold_minutes: s.late_threshold_minutes,
+      };
+    }
+
+    sendSuccess(res, {
+      ...pegawai,
+      gerai: pegawai.gerai_id ? {
+        id: pegawai.gerai_id,
+        kode: pegawai.kode_gerai,
+        nama: pegawai.nama_gerai,
+      } : null,
+      shift: shiftInfo,
+    });
+  } catch (error) {
+    logger.error('Get profile error', { error });
+    sendError(res, 'Gagal mengambil data profil.', 500);
+  }
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\controllers\superadmin.controller.ts ---
+
+import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import { query } from '../config/database';
+import { ROLES } from '../config/constants';
+import { sendSuccess, sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+// ============================================
+// GERAI CRUD
+// ============================================
+
+export const listGerai = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await query(
+      `SELECT g.*, 
+              (SELECT COUNT(*) FROM pegawai p WHERE p.gerai_id = g.id AND p.is_active = TRUE) as jumlah_pegawai
+       FROM gerai g
+       ORDER BY g.kode_gerai ASC`
+    );
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    logger.error('List gerai error', { error });
+    sendError(res, 'Gagal mengambil data gerai.', 500);
+  }
+};
+
+export const createGerai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { kode_gerai, nama_gerai } = req.body;
+
+    if (!kode_gerai || !nama_gerai) {
+      sendError(res, 'Kode gerai dan nama gerai wajib diisi.');
+      return;
+    }
+
+    // Check duplicate
+    const existing = await query('SELECT id FROM gerai WHERE LOWER(kode_gerai) = LOWER($1)', [kode_gerai]);
+    if (existing.rows.length > 0) {
+      sendError(res, `Gerai dengan kode "${kode_gerai}" sudah ada.`);
+      return;
+    }
+
+    const result = await query(
+      'INSERT INTO gerai (kode_gerai, nama_gerai) VALUES ($1, $2) RETURNING *',
+      [kode_gerai.toUpperCase(), nama_gerai]
+    );
+
+    // Also create a pegawai_gerai account for this gerai
+    const defaultPassword = await bcrypt.hash('password123', 10);
+    await query(
+      `INSERT INTO pegawai (nama, username, nip, departemen, password_hash, role, user_type, gerai_id, is_active)
+       VALUES ($1, $2, $3, 'Pelayanan', $4, $5, $6, $7, TRUE)`,
+      [
+        `Pegawai ${kode_gerai.toUpperCase()}`,
+        kode_gerai.toUpperCase(),
+        `G-${kode_gerai.toUpperCase()}`,
+        defaultPassword,
+        ROLES.PEGAWAI_GERAI,
+        'pegawai_gerai',
+        result.rows[0].id,
+      ]
+    );
+
+    // Assign default reguler shift
+    const shiftResult = await query(
+      `SELECT id FROM shift_config WHERE nama_shift = 'reguler' AND user_type = 'pegawai_gerai' LIMIT 1`
+    );
+    if (shiftResult.rows.length > 0) {
+      const pegawaiResult = await query(
+        `SELECT id FROM pegawai WHERE username = $1`, [kode_gerai.toUpperCase()]
+      );
+      if (pegawaiResult.rows.length > 0) {
+        await query(
+          `INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active)
+           VALUES ($1, $2, CURRENT_DATE, TRUE)`,
+          [pegawaiResult.rows[0].id, shiftResult.rows[0].id]
+        );
+      }
+    }
+
+    logger.info('Gerai created', { kode_gerai, nama_gerai });
+    sendSuccess(res, result.rows[0], 'Gerai berhasil ditambahkan.');
+  } catch (error) {
+    logger.error('Create gerai error', { error });
+    sendError(res, 'Gagal menambahkan gerai.', 500);
+  }
+};
+
+export const updateGerai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { kode_gerai, nama_gerai } = req.body;
+
+    const result = await query(
+      'UPDATE gerai SET kode_gerai = COALESCE($1, kode_gerai), nama_gerai = COALESCE($2, nama_gerai), updated_at = NOW() WHERE id = $3 RETURNING *',
+      [kode_gerai, nama_gerai, id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Gerai tidak ditemukan.', 404);
+      return;
+    }
+
+    logger.info('Gerai updated', { id, kode_gerai, nama_gerai });
+    sendSuccess(res, result.rows[0], 'Gerai berhasil diperbarui.');
+  } catch (error) {
+    logger.error('Update gerai error', { error });
+    sendError(res, 'Gagal memperbarui gerai.', 500);
+  }
+};
+
+export const toggleGerai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'UPDATE gerai SET is_active = NOT is_active, updated_at = NOW() WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Gerai tidak ditemukan.', 404);
+      return;
+    }
+
+    const gerai = result.rows[0];
+
+    // Also toggle the associated pegawai
+    await query(
+      'UPDATE pegawai SET is_active = $1, updated_at = NOW() WHERE gerai_id = $2',
+      [gerai.is_active, id]
+    );
+
+    const statusText = gerai.is_active ? 'diaktifkan' : 'dinonaktifkan';
+    logger.info(`Gerai ${statusText}`, { id, kode_gerai: gerai.kode_gerai });
+    sendSuccess(res, gerai, `Gerai berhasil ${statusText}.`);
+  } catch (error) {
+    logger.error('Toggle gerai error', { error });
+    sendError(res, 'Gagal mengubah status gerai.', 500);
+  }
+};
+
+// ============================================
+// PEGAWAI CRUD (Satpam & CS)
+// ============================================
+
+export const listPegawai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { user_type, is_active } = req.query;
+
+    let sql = `
+      SELECT p.id, p.nama, p.username, p.nip, p.departemen, p.role, p.user_type,
+             p.sub_type, p.gerai_id, p.is_active, p.created_at,
+             g.kode_gerai, g.nama_gerai,
+             sc.nama_shift, sc.jam_masuk, sc.jam_keluar
+      FROM pegawai p
+      LEFT JOIN gerai g ON p.gerai_id = g.id
+      LEFT JOIN pegawai_shift_assignment psa ON p.id = psa.pegawai_id AND psa.is_active = TRUE
+      LEFT JOIN shift_config sc ON psa.shift_config_id = sc.id
+      WHERE p.role NOT IN ('admin', 'superadmin')
+    `;
+    const params: any[] = [];
+
+    if (user_type) {
+      params.push(String(user_type));
+      sql += ` AND p.user_type = $${params.length}`;
+    }
+
+    if (is_active !== undefined) {
+      params.push(is_active === 'true');
+      sql += ` AND p.is_active = $${params.length}`;
+    }
+
+    sql += ' ORDER BY p.user_type, p.nama ASC';
+
+    const result = await query(sql, params);
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    logger.error('List pegawai error', { error });
+    sendError(res, 'Gagal mengambil data pegawai.', 500);
+  }
+};
+
+export const createPegawai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { nama, username, nip, departemen, email, password, user_type, sub_type, gerai_id } = req.body;
+
+    if (!nama || !username || !user_type) {
+      sendError(res, 'Nama, username, dan tipe user wajib diisi.');
+      return;
+    }
+
+    // Validate user_type
+    const validTypes = ['pegawai_gerai', 'satpam', 'cs'];
+    if (!validTypes.includes(user_type)) {
+      sendError(res, 'Tipe user tidak valid. Pilih: pegawai_gerai, satpam, atau cs.');
+      return;
+    }
+
+    // Check duplicate username
+    const existing = await query('SELECT id FROM pegawai WHERE LOWER(username) = LOWER($1)', [username]);
+    if (existing.rows.length > 0) {
+      sendError(res, `Username "${username}" sudah digunakan.`);
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password || 'password123', 10);
+
+    // Map user_type to role
+    const role = user_type;
+
+    const result = await query(
+      `INSERT INTO pegawai (nama, username, nip, departemen, email, password_hash, role, user_type, sub_type, gerai_id, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE) RETURNING id, nama, username, user_type, sub_type, role`,
+      [nama, username, nip || null, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, gerai_id || null]
+    );
+
+    logger.info('Pegawai created', { nama, username, user_type });
+    sendSuccess(res, result.rows[0], 'Pegawai berhasil ditambahkan.');
+  } catch (error) {
+    logger.error('Create pegawai error', { error });
+    sendError(res, 'Gagal menambahkan pegawai.', 500);
+  }
+};
+
+export const updatePegawai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { nama, username, nip, departemen, email, sub_type } = req.body;
+
+    const result = await query(
+      `UPDATE pegawai SET 
+        nama = COALESCE($1, nama),
+        username = COALESCE($2, username),
+        nip = COALESCE($3, nip),
+        departemen = COALESCE($4, departemen),
+        email = COALESCE($5, email),
+        sub_type = COALESCE($6, sub_type),
+        updated_at = NOW()
+       WHERE id = $7 RETURNING id, nama, username, user_type, sub_type, role`,
+      [nama, username, nip, departemen, email, sub_type, id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      return;
+    }
+
+    logger.info('Pegawai updated', { id });
+    sendSuccess(res, result.rows[0], 'Data pegawai berhasil diperbarui.');
+  } catch (error) {
+    logger.error('Update pegawai error', { error });
+    sendError(res, 'Gagal memperbarui data pegawai.', 500);
+  }
+};
+
+export const togglePegawai = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'UPDATE pegawai SET is_active = NOT is_active, updated_at = NOW() WHERE id = $1 RETURNING id, nama, username, is_active',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      return;
+    }
+
+    const pegawai = result.rows[0];
+    const statusText = pegawai.is_active ? 'diaktifkan' : 'dinonaktifkan';
+    logger.info(`Pegawai ${statusText}`, { id, nama: pegawai.nama });
+    sendSuccess(res, pegawai, `Pegawai berhasil ${statusText}.`);
+  } catch (error) {
+    logger.error('Toggle pegawai error', { error });
+    sendError(res, 'Gagal mengubah status pegawai.', 500);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { new_password } = req.body;
+
+    const password = new_password || 'password123';
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await query(
+      'UPDATE pegawai SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, nama, username',
+      [passwordHash, id]
+    );
+
+    if (result.rows.length === 0) {
+      sendError(res, 'Pegawai tidak ditemukan.', 404);
+      return;
+    }
+
+    logger.info('Password reset', { id, nama: result.rows[0].nama });
+    sendSuccess(res, { id: result.rows[0].id }, 'Password berhasil direset.');
+  } catch (error) {
+    logger.error('Reset password error', { error });
+    sendError(res, 'Gagal mereset password.', 500);
+  }
+};
+
+// ============================================
+// SHIFT MANAGEMENT
+// ============================================
+
+export const listShifts = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await query('SELECT * FROM shift_config ORDER BY user_type, nama_shift');
+    sendSuccess(res, result.rows);
+  } catch (error) {
+    logger.error('List shifts error', { error });
+    sendError(res, 'Gagal mengambil data shift.', 500);
+  }
+};
+
+export const assignShift = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { pegawai_id, shift_config_id, tanggal_mulai } = req.body;
+
+    if (!pegawai_id || !shift_config_id) {
+      sendError(res, 'Pegawai dan shift wajib dipilih.');
+      return;
+    }
+
+    // Deactivate existing assignment
+    await query(
+      'UPDATE pegawai_shift_assignment SET is_active = FALSE WHERE pegawai_id = $1 AND is_active = TRUE',
+      [pegawai_id]
+    );
+
+    // Create new assignment
+    const result = await query(
+      `INSERT INTO pegawai_shift_assignment (pegawai_id, shift_config_id, tanggal_mulai, is_active)
+       VALUES ($1, $2, $3, TRUE) RETURNING *`,
+      [pegawai_id, shift_config_id, tanggal_mulai || new Date().toISOString().split('T')[0]]
+    );
+
+    logger.info('Shift assigned', { pegawai_id, shift_config_id });
+    sendSuccess(res, result.rows[0], 'Shift berhasil diassign.');
+  } catch (error) {
+    logger.error('Assign shift error', { error });
+    sendError(res, 'Gagal mengassign shift.', 500);
+  }
+};
+
+// ============================================
+// DASHBOARD STATS
+// ============================================
+
+export const getDashboardStats = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const stats = await query(`
+      SELECT
+        (SELECT COUNT(*) FROM pegawai WHERE is_active = TRUE AND role NOT IN ('admin', 'superadmin')) as total_pegawai_aktif,
+        (SELECT COUNT(*) FROM pegawai WHERE user_type = 'pegawai_gerai' AND is_active = TRUE) as total_gerai,
+        (SELECT COUNT(*) FROM pegawai WHERE user_type = 'satpam' AND is_active = TRUE) as total_satpam,
+        (SELECT COUNT(*) FROM pegawai WHERE user_type = 'cs' AND is_active = TRUE) as total_cs,
+        (SELECT COUNT(*) FROM gerai WHERE is_active = TRUE) as total_gerai_aktif,
+        (SELECT COUNT(*) FROM gerai WHERE is_active = FALSE) as total_gerai_nonaktif
+    `);
+
+    sendSuccess(res, stats.rows[0]);
+  } catch (error) {
+    logger.error('Dashboard stats error', { error });
+    sendError(res, 'Gagal mengambil statistik dashboard.', 500);
+  }
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\middleware\adminAuth.middleware.ts ---
+
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from './auth.middleware';
+import { ADMIN_ROLES } from '../config/constants';
+import { sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+export const adminAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    sendError(res, 'Autentikasi diperlukan.', 401);
+    return;
+  }
+
+  if (!ADMIN_ROLES.includes(req.user.role as any)) {
+    logger.warn('Non-admin user attempted to access admin route', {
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+    });
+    sendError(res, 'Anda tidak memiliki akses ke halaman ini.', 403);
+    return;
+  }
+
+  next();
+};
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\middleware\auth.middleware.ts ---
+
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { CONFIG } from '../config/constants';
+import { sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  nama: string;
+  departemen: string;
+  role: string;
+  user_type: string;
+  sub_type?: string;
+  gerai_id?: number;
+  // Legacy field â€” kept for backward compat
+  nip?: string;
+}
+
+export interface AuthRequest extends Request {
+  user?: AuthUser;
+}
+
+export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      sendError(res, 'Token tidak ditemukan. Silakan login terlebih dahulu.', 401);
+      return;
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as AuthUser;
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    logger.warn('Invalid JWT token attempt', { error });
+    sendError(res, 'Token tidak valid atau sudah expired. Silakan login kembali.', 401);
+    return;
+  }
+};
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\middleware\rateLimit.middleware.ts ---
+
+import rateLimit from 'express-rate-limit';
+import { CONFIG } from '../config/constants';
+
+export const apiRateLimiter = rateLimit({
+  windowMs: CONFIG.RATE_LIMIT_WINDOW_MS,
+  max: CONFIG.RATE_LIMIT_MAX,
+  message: {
+    success: false,
+    message: 'Terlalu banyak permintaan. Silakan coba lagi dalam 1 menit.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Vercel uses proxy â€” extract IP from X-Forwarded-For header
+  keyGenerator: (req) => {
+    return (
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.ip ||
+      'unknown'
+    );
+  },
+  validate: { xForwardedForHeader: false, forwardedHeader: false },
+});
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\middleware\roleAuth.middleware.ts ---
+
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from './auth.middleware';
+import { Role } from '../config/constants';
+import { sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+/**
+ * Factory middleware â€” accepts an array of allowed roles.
+ * Usage: roleAuth([ROLES.ADMIN, ROLES.SUPERADMIN])
+ */
+export const roleAuth = (allowedRoles: Role[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      sendError(res, 'Autentikasi diperlukan.', 401);
+      return;
+    }
+
+    if (!allowedRoles.includes(req.user.role as Role)) {
+      logger.warn('Unauthorized role access attempt', {
+        userId: req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+        requiredRoles: allowedRoles,
+      });
+      sendError(res, 'Anda tidak memiliki akses ke fitur ini.', 403);
+      return;
+    }
+
+    next();
+  };
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\middleware\superAdminAuth.middleware.ts ---
+
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from './auth.middleware';
+import { ROLES } from '../config/constants';
+import { sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+export const superAdminAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    sendError(res, 'Autentikasi diperlukan.', 401);
+    return;
+  }
+
+  if (req.user.role !== ROLES.SUPERADMIN) {
+    logger.warn('Non-superadmin user attempted to access superadmin route', {
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+    });
+    sendError(res, 'Hanya Super Admin yang dapat mengakses fitur ini.', 403);
+    return;
+  }
+
+  next();
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\routes\admin.routes.ts ---
+
+import { Router } from 'express';
+import { getAttendanceReport, getAttemptLogs, getMonthlyChart } from '../controllers/admin.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+
+const router = Router();
+
+// All admin routes require authentication + admin role
+router.use(authMiddleware);
+router.use(adminAuthMiddleware);
+
+router.get('/attendance-report', getAttendanceReport);
+router.get('/monthly-chart', getMonthlyChart);
+router.get('/attempt-logs', getAttemptLogs);
+
+export default router;
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\routes\attendance.routes.ts ---
+
+import { Router } from 'express';
+import { checkin, checkout, getUserData, todayStatus } from '../controllers/attendance.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+
+const router = Router();
+
+// All attendance routes require authentication
+router.use(authMiddleware);
+
+router.get('/user-data', getUserData);
+router.get('/today-status', todayStatus);
+router.post('/checkin', checkin);
+router.post('/checkout', checkout);
+
+export default router;
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\routes\auth.routes.ts ---
+
+import { Router } from 'express';
+import { login, logout, getProfile } from '../controllers/auth.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+
+const router = Router();
+
+router.post('/login', login);
+router.post('/logout', logout);
+router.get('/profile', authMiddleware, getProfile);
+
+export default router;
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\routes\superadmin.routes.ts ---
+
+import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { superAdminAuthMiddleware } from '../middleware/superAdminAuth.middleware';
+import {
+  listGerai, createGerai, updateGerai, toggleGerai,
+  listPegawai, createPegawai, updatePegawai, togglePegawai, resetPassword,
+  listShifts, assignShift,
+  getDashboardStats,
+} from '../controllers/superadmin.controller';
+
+const router = Router();
+
+// All routes require auth + superadmin
+router.use(authMiddleware);
+router.use(superAdminAuthMiddleware);
+
+// Dashboard stats
+router.get('/dashboard', getDashboardStats);
+
+// Gerai CRUD
+router.get('/gerai', listGerai);
+router.post('/gerai', createGerai);
+router.put('/gerai/:id', updateGerai);
+router.patch('/gerai/:id/toggle', toggleGerai);
+
+// Pegawai CRUD
+router.get('/pegawai', listPegawai);
+router.post('/pegawai', createPegawai);
+router.put('/pegawai/:id', updatePegawai);
+router.patch('/pegawai/:id/toggle', togglePegawai);
+router.patch('/pegawai/:id/reset-password', resetPassword);
+
+// Shift management
+router.get('/shifts', listShifts);
+router.post('/shifts/assign', assignShift);
+
+export default router;
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\services\attendance.service.ts ---
+
+import { query } from '../config/database';
+import { CONFIG } from '../config/constants';
+import { isWithinRadius } from './geolocation.service';
+import { savePhoto } from './photo.service';
+import { logger } from '../utils/logger';
+
+/**
+ * Get current date/time parts in WIB (Asia/Jakarta, UTC+7).
+ */
+const getWIBParts = (date: Date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: CONFIG.TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((p) => [p.type, p.value])
+  );
+  const hour = parseInt(parts.hour === '24' ? '0' : parts.hour, 10);
+  return {
+    year: parseInt(parts.year, 10),
+    month: parseInt(parts.month, 10),
+    day: parseInt(parts.day, 10),
+    hour,
+    minute: parseInt(parts.minute, 10),
+    second: parseInt(parts.second, 10),
+    dateString: `${parts.year}-${parts.month}-${parts.day}`,
+  };
+};
+
+/**
+ * Get today's date string (YYYY-MM-DD) in WIB timezone.
+ */
+const getWIBDateString = (): string => {
+  return getWIBParts().dateString;
+};
+
+export interface ShiftInfo {
+  id: number;
+  nama_shift: string;
+  jam_masuk: string;      // "HH:MM:SS" or "HH:MM"
+  jam_keluar: string;
+  is_cross_midnight: boolean;
+  late_threshold_minutes: number;
+}
+
+export interface AttendanceResult {
+  success: boolean;
+  message: string;
+  distance_from_office: number;
+  server_timestamp: string;
+  status?: string;
+}
+
+/**
+ * Get the active shift for a pegawai from the database.
+ */
+const getActiveShift = async (pegawaiId: number): Promise<ShiftInfo | null> => {
+  const result = await query(
+    `SELECT sc.id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
+            sc.is_cross_midnight, sc.late_threshold_minutes
+     FROM pegawai_shift_assignment psa
+     JOIN shift_config sc ON psa.shift_config_id = sc.id
+     WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
+     ORDER BY psa.created_at DESC
+     LIMIT 1`,
+    [pegawaiId]
+  );
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    nama_shift: row.nama_shift,
+    jam_masuk: row.jam_masuk,
+    jam_keluar: row.jam_keluar,
+    is_cross_midnight: row.is_cross_midnight,
+    late_threshold_minutes: row.late_threshold_minutes,
+  };
+};
+
+/**
+ * Parse a time string ("HH:MM" or "HH:MM:SS") into total minutes since midnight.
+ */
+const parseTimeToMinutes = (timeStr: string): number => {
+  const parts = timeStr.split(':').map(Number);
+  return parts[0] * 60 + parts[1];
+};
+
+/**
+ * Log every attendance attempt (success or failure) for audit trail.
+ */
+const logAttempt = async (
+  pegawaiId: number,
+  type: 'checkin' | 'checkout',
+  latitude: number,
+  longitude: number,
+  distance: number,
+  status: string,
+  errorMessage?: string
+): Promise<void> => {
+  try {
+    await query(
+      `INSERT INTO attendance_attempt_log 
+       (pegawai_id, attempt_time, attempt_type, latitude, longitude, distance_from_office, status, error_message)
+       VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7)`,
+      [pegawaiId, type, latitude, longitude, distance, status, errorMessage || null]
+    );
+  } catch (error) {
+    logger.error('Failed to log attendance attempt', { error, pegawaiId, type });
+  }
+};
+
+/**
+ * Check if current time is within allowed hours based on shift assignment.
+ *
+ * Logic:
+ * - Checkin: no time restriction (allowed any time) â€” same as before.
+ * - Checkout: must be after jam_keluar of the assigned shift.
+ *   - For cross-midnight shifts (e.g. 23:00 â†’ 07:00), checkout is allowed
+ *     after 07:00 the NEXT day.
+ *   - For regular shifts, checkout is simply after jam_keluar.
+ *
+ * Note: We also apply a Friday rule â€” on Fridays, if the user's shift is
+ * the "reguler" type, checkout starts at 11:00 instead.
+ */
+const isWithinWorkingHours = (
+  type: 'checkin' | 'checkout',
+  shift: ShiftInfo | null
+): { allowed: boolean; message: string } => {
+  // Checkin has no time restriction
+  if (type === 'checkin') {
+    return { allowed: true, message: '' };
+  }
+
+  // Checkout validation
+  const wib = getWIBParts();
+  const currentTotalMinutes = wib.hour * 60 + wib.minute;
+
+  // If no shift found, use legacy defaults
+  if (!shift) {
+    const dayName = new Intl.DateTimeFormat('en-US', {
+      timeZone: CONFIG.TIMEZONE,
+      weekday: 'short',
+    }).format(new Date());
+    const isFriday = dayName === 'Fri';
+
+    const startHour = isFriday ? CONFIG.FRIDAY_CHECKOUT_START_HOUR : CONFIG.CHECKOUT_START_HOUR;
+    const startMinute = isFriday ? CONFIG.FRIDAY_CHECKOUT_START_MINUTE : CONFIG.CHECKOUT_START_MINUTE;
+    const startTotalMinutes = startHour * 60 + startMinute;
+
+    if (currentTotalMinutes < startTotalMinutes) {
+      const label = isFriday ? 'Hari Jumat, presensi' : 'Presensi';
+      const formattedStart = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
+      const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+      return {
+        allowed: false,
+        message: `${label} keluar tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
+      };
+    }
+
+    return { allowed: true, message: '' };
+  }
+
+  // Shift-based checkout validation
+  const checkoutMinutes = parseTimeToMinutes(shift.jam_keluar);
+
+  if (shift.is_cross_midnight) {
+    // Cross-midnight shift (e.g. malam 23:00 â†’ 07:00)
+    // Checkout is allowed after jam_keluar (which is in the AM next day)
+    // If current time is between 00:00 and jam_keluar, it's too early
+    if (currentTotalMinutes < checkoutMinutes) {
+      const formattedKeluar = shift.jam_keluar.substring(0, 5);
+      const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+      return {
+        allowed: false,
+        message: `Shift ${shift.nama_shift}: presensi keluar tersedia mulai jam ${formattedKeluar}. Saat ini jam ${formattedCurrent}.`,
+      };
+    }
+  } else {
+    // Regular shift â€” checkout after jam_keluar
+    // Apply Friday exception for 'reguler' shifts
+    let effectiveCheckout = checkoutMinutes;
+
+    if (shift.nama_shift === 'reguler') {
+      const dayName = new Intl.DateTimeFormat('en-US', {
+        timeZone: CONFIG.TIMEZONE,
+        weekday: 'short',
+      }).format(new Date());
+
+      if (dayName === 'Fri') {
+        effectiveCheckout = CONFIG.FRIDAY_CHECKOUT_START_HOUR * 60 + CONFIG.FRIDAY_CHECKOUT_START_MINUTE;
+      }
+    }
+
+    if (currentTotalMinutes < effectiveCheckout) {
+      const h = Math.floor(effectiveCheckout / 60);
+      const m = effectiveCheckout % 60;
+      const formattedKeluar = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
+      return {
+        allowed: false,
+        message: `Shift ${shift.nama_shift}: presensi keluar tersedia mulai jam ${formattedKeluar}. Saat ini jam ${formattedCurrent}.`,
+      };
+    }
+  }
+
+  return { allowed: true, message: '' };
+};
+
+/**
+ * Check if there's a duplicate attendance within the time window.
+ */
+const checkDuplicate = async (
+  pegawaiId: number,
+  type: 'checkin' | 'checkout'
+): Promise<{ isDuplicate: boolean; lastTime?: string }> => {
+  const today = getWIBDateString();
+
+  const result = await query(
+    `SELECT ${type}_time FROM attendance 
+     WHERE pegawai_id = $1 AND date = $2 AND ${type}_time IS NOT NULL`,
+    [pegawaiId, today]
+  );
+
+  if (result.rows.length > 0) {
+    const lastTime = result.rows[0][`${type}_time`];
+    const timeDiff = (Date.now() - new Date(lastTime).getTime()) / (1000 * 60);
+
+    if (timeDiff < CONFIG.DUPLICATE_WINDOW_MINUTES) {
+      return {
+        isDuplicate: true,
+        lastTime: new Date(lastTime).toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: CONFIG.TIMEZONE,
+        }),
+      };
+    }
+  }
+
+  return { isDuplicate: false };
+};
+
+/**
+ * Determine if checkin is late based on shift's late threshold.
+ */
+const isCheckinLate = (shift: ShiftInfo | null): boolean => {
+  const wib = getWIBParts();
+  const currentTotalMinutes = wib.hour * 60 + wib.minute;
+
+  if (!shift) {
+    // Legacy fallback
+    const lateThresholdMinutes = CONFIG.CHECKIN_LATE_HOUR * 60 + CONFIG.CHECKIN_LATE_MINUTE;
+    return currentTotalMinutes > lateThresholdMinutes;
+  }
+
+  const shiftStartMinutes = parseTimeToMinutes(shift.jam_masuk);
+  const lateAfterMinutes = shiftStartMinutes + shift.late_threshold_minutes;
+
+  if (shift.is_cross_midnight) {
+    // Cross-midnight shift: late if checked in after (jam_masuk + threshold)
+    // Since jam_masuk is 23:00 and threshold is 60, late after 00:00
+    // We need to handle wrap-around
+    if (lateAfterMinutes >= 24 * 60) {
+      const wrappedLate = lateAfterMinutes - 24 * 60;
+      // If current time is between 00:00 and wrappedLate, not late
+      // If current time is after wrappedLate and before jam_masuk, late
+      return currentTotalMinutes > wrappedLate && currentTotalMinutes < shiftStartMinutes;
+    }
+    return currentTotalMinutes > lateAfterMinutes;
+  }
+
+  return currentTotalMinutes > lateAfterMinutes;
+};
+
+/**
+ * Process attendance (checkin or checkout).
+ * This is the main business logic function.
+ */
+export const processAttendance = async (
+  pegawaiId: number,
+  latitude: number,
+  longitude: number,
+  photoBase64: string,
+  type: 'checkin' | 'checkout'
+): Promise<AttendanceResult> => {
+  const now = new Date();
+  const today = getWIBDateString();
+
+  // 0. Get active shift for this pegawai
+  const shift = await getActiveShift(pegawaiId);
+
+  // 1. Validate working hours (shift-aware)
+  const hoursCheck = isWithinWorkingHours(type, shift);
+  if (!hoursCheck.allowed) {
+    const { distance } = isWithinRadius(latitude, longitude);
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'outside_hours', hoursCheck.message);
+    return {
+      success: false,
+      message: hoursCheck.message,
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'outside_hours',
+    };
+  }
+
+  // 2. Server-side recalculate distance (CRITICAL - never trust client)
+  const { within, distance } = isWithinRadius(latitude, longitude);
+  if (!within) {
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'out_of_radius');
+    return {
+      success: false,
+      message: `Lokasi Anda di luar radius kantor. Jarak saat ini: ${Math.round(distance)} meter. Radius maksimal: ${CONFIG.MAX_RADIUS_METERS} meter. Silakan masuk area kantor terlebih dahulu.`,
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'out_of_radius',
+    };
+  }
+
+  // 3. Check duplicate within time window
+  const duplicateCheck = await checkDuplicate(pegawaiId, type);
+  if (duplicateCheck.isDuplicate) {
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'duplicate');
+    return {
+      success: false,
+      message: `Anda sudah melakukan presensi ${type === 'checkin' ? 'masuk' : 'keluar'} pada ${duplicateCheck.lastTime}. Presensi berikutnya dapat dilakukan setelah ${CONFIG.DUPLICATE_WINDOW_MINUTES} menit.`,
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'duplicate',
+    };
+  }
+
+  // 4. Save photo
+  let photoPath: string;
+  try {
+    photoPath = await savePhoto(photoBase64, pegawaiId, type);
+  } catch {
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'failed', 'Photo save failed');
+    return {
+      success: false,
+      message: 'Gagal menyimpan foto presensi. Silakan coba lagi atau hubungi admin.',
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'failed',
+    };
+  }
+
+  // 5. Determine status (shift-aware late check)
+  let status = 'success';
+  if (type === 'checkin' && isCheckinLate(shift)) {
+    status = 'late';
+  }
+
+  // 6. Upsert attendance record
+  try {
+    if (type === 'checkin') {
+      await query(
+        `INSERT INTO attendance (pegawai_id, date, checkin_time, checkin_latitude, checkin_longitude, checkin_distance_from_office, checkin_photo_path, checkin_status)
+         VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
+         ON CONFLICT (pegawai_id, date)
+         DO UPDATE SET checkin_time = NOW(), checkin_latitude = $3, checkin_longitude = $4, checkin_distance_from_office = $5, checkin_photo_path = $6, checkin_status = $7, updated_at = NOW()`,
+        [pegawaiId, today, latitude, longitude, distance, photoPath, status]
+      );
+    } else {
+      await query(
+        `INSERT INTO attendance (pegawai_id, date, checkout_time, checkout_latitude, checkout_longitude, checkout_distance_from_office, checkout_photo_path, checkout_status)
+         VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
+         ON CONFLICT (pegawai_id, date)
+         DO UPDATE SET checkout_time = NOW(), checkout_latitude = $3, checkout_longitude = $4, checkout_distance_from_office = $5, checkout_photo_path = $6, checkout_status = $7, updated_at = NOW()`,
+        [pegawaiId, today, latitude, longitude, distance, photoPath, status]
+      );
+    }
+
+    // Log successful attempt
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, status);
+
+    const statusMessage = status === 'late' ? ' (Terlambat)' : '';
+    const greeting = type === 'checkin' ? 'Terima kasih, selamat bekerja!' : 'Terima kasih, hati-hati di jalan!';
+
+    logger.info(`Attendance ${type} recorded`, {
+      pegawaiId,
+      distance,
+      status,
+      shift: shift?.nama_shift || 'default',
+      time: now.toISOString(),
+    });
+
+    return {
+      success: true,
+      message: `Presensi ${type === 'checkin' ? 'masuk' : 'keluar'} berhasil dicatat${statusMessage}. ${greeting}`,
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status,
+    };
+  } catch (error) {
+    logger.error('Failed to save attendance record', { error, pegawaiId, type });
+    await logAttempt(pegawaiId, type, latitude, longitude, distance, 'failed', 'Database error');
+    return {
+      success: false,
+      message: 'Terjadi kesalahan saat menyimpan presensi. Silakan coba lagi.',
+      distance_from_office: distance,
+      server_timestamp: now.toISOString(),
+      status: 'failed',
+    };
+  }
+};
+
+/**
+ * Get today's attendance status for a pegawai.
+ */
+export const getTodayStatus = async (pegawaiId: number) => {
+  const today = getWIBDateString();
+
+  const result = await query(
+    `SELECT checkin_time, checkin_status, checkin_distance_from_office,
+            checkout_time, checkout_status, checkout_distance_from_office
+     FROM attendance
+     WHERE pegawai_id = $1 AND date = $2`,
+    [pegawaiId, today]
+  );
+
+  if (result.rows.length === 0) {
+    return { checkin: null, checkout: null };
+  }
+
+  const row = result.rows[0];
+  return {
+    checkin: row.checkin_time
+      ? {
+          time: row.checkin_time,
+          status: row.checkin_status,
+          distance: row.checkin_distance_from_office,
+        }
+      : null,
+    checkout: row.checkout_time
+      ? {
+          time: row.checkout_time,
+          status: row.checkout_status,
+          distance: row.checkout_distance_from_office,
+        }
+      : null,
+  };
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\services\geolocation.service.ts ---
+
+import { CONFIG } from '../config/constants';
+
+/**
+ * Calculate distance between two coordinates using the Haversine formula.
+ * Returns distance in meters.
+ */
+export const calculateDistance = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const Ï†1 = (lat1 * Math.PI) / 180;
+  const Ï†2 = (lat2 * Math.PI) / 180;
+  const Î”Ï† = ((lat2 - lat1) * Math.PI) / 180;
+  const Î”Î» = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Î”Ï† / 2) * Math.sin(Î”Ï† / 2) +
+    Math.cos(Ï†1) * Math.cos(Ï†2) * Math.sin(Î”Î» / 2) * Math.sin(Î”Î» / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
+
+/**
+ * Calculate distance from office location.
+ * Server ALWAYS recalculates â€” never trust client-side distance.
+ */
+export const calculateDistanceFromOffice = (lat: number, lng: number): number => {
+  return calculateDistance(lat, lng, CONFIG.OFFICE_LAT, CONFIG.OFFICE_LNG);
+};
+
+/**
+ * Check if coordinates are within the allowed radius from office.
+ */
+export const isWithinRadius = (lat: number, lng: number): { within: boolean; distance: number } => {
+  const distance = calculateDistanceFromOffice(lat, lng);
+  return {
+    within: distance <= CONFIG.MAX_RADIUS_METERS,
+    distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
+  };
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\services\photo.service.ts ---
+
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
+import { CONFIG } from '../config/constants';
+import { getSupabase, STORAGE_BUCKET } from '../config/supabase';
+import { logger } from '../utils/logger';
+
+/**
+ * Process and save photo.
+ * - Production (Vercel): uploads to Supabase Storage
+ * - Development (local): saves to local filesystem
+ */
+export const savePhoto = async (
+  base64Data: string,
+  pegawaiId: number,
+  type: 'checkin' | 'checkout'
+): Promise<string> => {
+  try {
+    // Remove base64 header if present
+    const base64Clean = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    const imageBuffer = Buffer.from(base64Clean, 'base64');
+
+    // Compress image using sharp
+    const compressedBuffer = await sharp(imageBuffer)
+      .resize(CONFIG.PHOTO_MAX_WIDTH, null, {
+        withoutEnlargement: true,
+        fit: 'inside',
+      })
+      .jpeg({ quality: CONFIG.PHOTO_QUALITY })
+      .toBuffer();
+
+    // Generate file path
+    const today = new Date();
+    const wib = new Date(today.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+    const dateStr = `${wib.getFullYear()}-${String(wib.getMonth() + 1).padStart(2, '0')}-${String(wib.getDate()).padStart(2, '0')}`;
+    const timestamp = Date.now();
+    const filename = `${pegawaiId}-${type}-${timestamp}.jpg`;
+    const storagePath = `${dateStr}/${filename}`;
+
+    const supabase = getSupabase();
+
+    if (supabase) {
+      // ===== SUPABASE STORAGE (Production / Cloud) =====
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, compressedBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) {
+        logger.error('Supabase Storage upload failed', { error: error.message });
+        throw new Error('Gagal mengupload foto ke cloud storage.');
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+
+      const publicUrl = urlData.publicUrl;
+
+      const fileSizeKB = Math.round(compressedBuffer.length / 1024);
+      logger.info(`Photo uploaded to Supabase: ${storagePath} (${fileSizeKB}KB)`, {
+        pegawaiId,
+        type,
+        sizeKB: fileSizeKB,
+        url: publicUrl,
+      });
+
+      return publicUrl;
+    } else {
+      // ===== LOCAL FILESYSTEM (Development) =====
+      const dirPath = path.join(CONFIG.UPLOAD_DIR, dateStr);
+
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+
+      const filePath = path.join(dirPath, filename);
+      fs.writeFileSync(filePath, compressedBuffer);
+
+      const fileSizeKB = Math.round(compressedBuffer.length / 1024);
+      logger.info(`Photo saved locally: ${filePath} (${fileSizeKB}KB)`, {
+        pegawaiId,
+        type,
+        sizeKB: fileSizeKB,
+      });
+
+      return filePath;
+    }
+  } catch (error) {
+    logger.error('Failed to save photo', { error, pegawaiId, type });
+    throw new Error('Gagal menyimpan foto. Silakan coba lagi.');
+  }
+};
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\utils\logger.ts ---
+
+import winston from 'winston';
+import { CONFIG } from '../config/constants';
+
+const logFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
+    return `${timestamp} [${level.toUpperCase()}]: ${message} ${metaStr}`;
+  })
+);
+
+export const logger = winston.createLogger({
+  level: CONFIG.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: logFormat,
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        logFormat
+      ),
+    }),
+    // Di Vercel (serverless), filesystem bersifat read-only.
+    // Console transport sudah cukup karena Vercel akan menangkap stdout.
+    ...(process.env.VERCEL !== '1' ? [
+      new winston.transports.File({
+        filename: 'logs/error.log',
+        level: 'error',
+      }),
+      new winston.transports.File({
+        filename: 'logs/combined.log',
+      }),
+    ] : [])
+  ],
+});
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\utils\response.ts ---
+
+import { Response } from 'express';
+
+export const sendSuccess = (res: Response, data: any, message: string = 'Success', statusCode: number = 200) => {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    data,
+  });
+};
+
+export const sendError = (res: Response, message: string, statusCode: number = 400, errors?: any) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    errors,
+  });
+};
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\validators\attendance.validator.ts ---
+
+import { z } from 'zod';
+
+export const attendanceSchema = z.object({
+  latitude: z.number()
+    .min(-90, 'Latitude tidak valid')
+    .max(90, 'Latitude tidak valid'),
+  longitude: z.number()
+    .min(-180, 'Longitude tidak valid')
+    .max(180, 'Longitude tidak valid'),
+  photo: z.string()
+    .min(1, 'Foto presensi wajib diambil'),
+});
+
+export type AttendanceInput = z.infer<typeof attendanceSchema>;
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\validators\auth.validator.ts ---
+
+import { z } from 'zod';
+
+export const loginSchema = z.object({
+  username: z.string().min(1, 'Username wajib diisi'),
+  password: z.string().min(1, 'Password wajib diisi'),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+
+--- E:\Kuliah\Semester_7\Magang\Proj\backend\src\server.ts ---
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import path from 'path';
+import { CONFIG } from './config/constants';
+import { apiRateLimiter } from './middleware/rateLimit.middleware';
+import authRoutes from './routes/auth.routes';
+import attendanceRoutes from './routes/attendance.routes';
+import adminRoutes from './routes/admin.routes';
+import superadminRoutes from './routes/superadmin.routes';
+import { logger } from './utils/logger';
+
+const app = express();
+
+// CORS â€” manual headers agar tidak konflik dengan middleware lain
+app.use((_req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  // Preflight
+  if (_req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
+// Body parser â€” increase limit for base64 photo uploads
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Rate limiting
+app.use('/api/', apiRateLimiter);
+
+// Serve uploaded photos statically
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/superadmin', superadminRoutes);
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'Sistem Presensi DPMPTSP Kota Jambi â€” API is running',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint tidak ditemukan.',
+  });
+});
+
+// Global error handler
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Unhandled error', { error: err.message, stack: err.stack });
+  res.status(500).json({
+    success: false,
+    message: 'Terjadi kesalahan internal server.',
+  });
+});
+
+// Start server (only if not in Vercel/serverless environment)
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  app.listen(CONFIG.PORT, () => {
+    logger.info(`ðŸš€ Server berjalan di http://localhost:${CONFIG.PORT}`);
+    logger.info(`ðŸ“ Kantor DPMPTSP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
+    logger.info(`ðŸ“ Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
+    logger.info(`ðŸ• Jam masuk: tanpa batasan waktu`);
+    const monThuStart = `${String(CONFIG.CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.CHECKOUT_START_MINUTE).padStart(2, '0')}`;
+    const friStart = `${String(CONFIG.FRIDAY_CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.FRIDAY_CHECKOUT_START_MINUTE).padStart(2, '0')}`;
+    logger.info(`ðŸ• Jam keluar: mulai ${monThuStart} (Jumat: ${friStart})`);
+  });
+}
+
+export default app;

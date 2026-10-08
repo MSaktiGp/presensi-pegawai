@@ -27,6 +27,7 @@ interface Shift { id: number; nama_shift: string; user_type: string; jam_masuk: 
 
 const TYPES = [
   { value: '', label: 'Semua' },
+  { value: 'admin', label: 'Admin' },
   { value: 'pegawai_gerai', label: 'Pegawai Gerai' },
   { value: 'satpam', label: 'Satpam' },
   { value: 'cs', label: 'Cleaning Service' },
@@ -75,7 +76,7 @@ export default function PetugasPage() {
   const openEdit = (p: Petugas) => {
     setForm({
       nama: p.nama, username: p.username, departemen: p.departemen ?? '', password: '',
-      user_type: p.user_type, gerai_id: p.gerai_id ? String(p.gerai_id) : '',
+      user_type: p.user_type, gerai_id: p.nama_gerai ?? (p.gerai_id ? String(p.gerai_id) : ''),
       shift_config_id: p.shift_config_id ? String(p.shift_config_id) : ''
     });
     setEditing(p);
@@ -86,7 +87,7 @@ export default function PetugasPage() {
     setSaving(true);
     const isNew = editing === 'new';
     const body = isNew
-      ? { ...form, gerai_id: form.gerai_id ? Number(form.gerai_id) : null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
+      ? { ...form, gerai_id: form.gerai_id || null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
       : { nama: form.nama, username: form.username, departemen: form.departemen, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null };
     const r = isNew
       ? await api('/superadmin/pegawai', { method: 'POST', body })
@@ -224,10 +225,19 @@ export default function PetugasPage() {
                 </Field>
                 {form.user_type === 'pegawai_gerai' && (
                   <Field label="Gerai *">
-                    <select required value={form.gerai_id} onChange={set('gerai_id')} className="input text-sm">
-                      <option value="">Pilih gerai...</option>
-                      {gerai.filter((g) => g.is_active).map((g) => <option key={g.id} value={g.id}>{g.kode_gerai} — {g.nama_gerai}</option>)}
-                    </select>
+                    <div className="relative">
+                      <input 
+                        required 
+                        value={form.gerai_id} 
+                        onChange={set('gerai_id')} 
+                        className="input text-sm w-full" 
+                        placeholder="Ketik nama gerai baru atau pilih..."
+                        list="gerai-options"
+                      />
+                      <datalist id="gerai-options">
+                        {gerai.filter((g) => g.is_active).map((g) => <option key={g.id} value={g.nama_gerai}>{g.kode_gerai} — {g.nama_gerai}</option>)}
+                      </datalist>
+                    </div>
                   </Field>
                 )}
                 <Field label="Password (kosongkan = password123)"><input type="password" autoComplete="new-password" value={form.password} onChange={set('password')} className="input text-sm" /></Field>

@@ -155,7 +155,7 @@ export const listPegawai = async (req: Request, res: Response): Promise<void> =>
       LEFT JOIN gerai g ON p.gerai_id = g.id
       LEFT JOIN pegawai_shift_assignment psa ON p.id = psa.pegawai_id AND psa.is_active = TRUE
       LEFT JOIN shift_config sc ON psa.shift_config_id = sc.id
-      WHERE p.role NOT IN ('admin', 'superadmin')
+      WHERE p.role NOT IN ('superadmin')
     `;
     const params: any[] = [];
 
@@ -189,9 +189,9 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
     }
 
     // Validate user_type
-    const validTypes = ['pegawai_gerai', 'satpam', 'cs', 'resepsionis'];
+    const validTypes = ['admin', 'pegawai_gerai', 'satpam', 'cs', 'resepsionis'];
     if (!validTypes.includes(user_type)) {
-      res.status(400).json({ success: false, message: 'Tipe user tidak valid. Pilih: pegawai_gerai, satpam, cs, atau resepsionis.' });
+      res.status(400).json({ success: false, message: 'Tipe user tidak valid.' });
       return;
     }
 
@@ -207,10 +207,23 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
     // Map user_type to role
     const role = user_type;
 
+    let final_gerai_id = null;
+    if (user_type === 'pegawai_gerai' && gerai_id) {
+      const gName = String(gerai_id).trim();
+      const existingGerai = await query('SELECT id FROM gerai WHERE nama_gerai ILIKE $1 OR kode_gerai ILIKE $1', [gName]);
+      if (existingGerai.rows.length > 0) {
+        final_gerai_id = existingGerai.rows[0].id;
+      } else {
+        const newCode = `G-${Date.now().toString().slice(-4)}`;
+        const newGerai = await query('INSERT INTO gerai (kode_gerai, nama_gerai) VALUES ($1, $2) RETURNING id', [newCode, gName]);
+        final_gerai_id = newGerai.rows[0].id;
+      }
+    }
+
     const result = await query(
       `INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, sub_type, gerai_id, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE) RETURNING id, nama, username, user_type, sub_type, role`,
-      [nama, username, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, gerai_id || null]
+      [nama, username, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, final_gerai_id]
     );
 
     if (shift_config_id) {

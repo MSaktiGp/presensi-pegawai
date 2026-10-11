@@ -118,26 +118,26 @@ export default function RekapPage() {
   // Filter records
   const filteredRecords = mode === 'harian'
     ? (reportData?.report.filter((record) => {
-        const matchDept = !filterDept || record.departemen === filterDept;
-        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-        return matchDept && matchName;
-      }) || [])
+      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+      return matchDept && matchName;
+    }) || [])
     : [];
 
   const filteredMonthlyRecords = mode === 'bulanan'
     ? (monthlyData?.report.filter((record) => {
-        const matchDept = !filterDept || record.departemen === filterDept;
-        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-        return matchDept && matchName;
-      }) || [])
+      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+      return matchDept && matchName;
+    }) || [])
     : [];
 
   const filteredMonthlyDetails = mode === 'bulanan'
     ? (monthlyData?.details?.filter((record) => {
-        const matchDept = !filterDept || record.departemen === filterDept;
-        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-        return matchDept && matchName;
-      }) || [])
+      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+      return matchDept && matchName;
+    }) || [])
     : [];
 
   // Get unique departments
@@ -186,7 +186,7 @@ export default function RekapPage() {
           month: '2-digit',
           year: 'numeric'
         });
-      } catch {}
+      } catch { }
 
       const jamMasuk = r.checkin_time
         ? new Date(r.checkin_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -259,7 +259,7 @@ export default function RekapPage() {
     if (mode === 'harian') {
       if (!filteredRecords.length) return;
       const doc = new jsPDF();
-      
+
       doc.text(`Rekap Presensi Petugas MPP Kota Jambi`, 14, 15);
       doc.setFontSize(10);
       doc.text(`Tanggal: ${selectedDate} | Petugas: ${filterDept || 'Semua Petugas'}`, 14, 22);
@@ -284,7 +284,7 @@ export default function RekapPage() {
       const detailData = getMonthlyDetailExportData();
       if (!detailData.length && !filteredMonthlyRecords.length) return;
       const doc = new jsPDF();
-      
+
       doc.text(`Rekap Presensi Bulanan Petugas MPP Kota Jambi`, 14, 15);
       doc.setFontSize(10);
       const targetLabel = searchName ? `Pencarian: "${searchName}"` : (filterDept || 'Semua Petugas');
@@ -344,22 +344,20 @@ export default function RekapPage() {
             <button
               type="button"
               onClick={() => setMode('harian')}
-              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
-                mode === 'harian'
+              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${mode === 'harian'
                   ? 'bg-[var(--primary-dark)] text-white shadow-sm'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-gray-50'
-              }`}
+                }`}
             >
               Rekap Harian
             </button>
             <button
               type="button"
               onClick={() => setMode('bulanan')}
-              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
-                mode === 'bulanan'
+              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${mode === 'bulanan'
                   ? 'bg-[var(--primary-dark)] text-white shadow-sm'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-gray-50'
-              }`}
+                }`}
             >
               Rekap Bulanan
             </button>
@@ -520,7 +518,7 @@ export default function RekapPage() {
               Unduh PDF
             </button>
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsExcelDropdownOpen(!isExcelDropdownOpen)}
                 className="btn bg-[#27ae60] hover:bg-[#219653] text-white !py-2 !px-3 text-sm font-semibold rounded-lg border-none flex items-center gap-2"
               >
@@ -530,25 +528,25 @@ export default function RekapPage() {
               </button>
               {isExcelDropdownOpen && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-10" 
+                  <div
+                    className="fixed inset-0 z-10"
                     onClick={() => setIsExcelDropdownOpen(false)}
                   />
                   <div className="absolute left-0 mt-2 w-36 bg-white rounded-lg shadow-xl z-20 border border-[var(--border-light)] overflow-hidden animate-fade-in">
-                    <button 
+                    <button
                       onClick={() => {
                         exportExcel('xlsx');
                         setIsExcelDropdownOpen(false);
-                      }} 
+                      }}
                       className="w-full text-left px-4 py-3 text-sm active:bg-[var(--primary-light)] sm:hover:bg-[var(--primary-light)] text-[var(--text-primary)] font-medium border-b border-[var(--border-light)]"
                     >
                       Format XLSX
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         exportExcel('csv');
                         setIsExcelDropdownOpen(false);
-                      }} 
+                      }}
                       className="w-full text-left px-4 py-3 text-sm active:bg-[var(--primary-light)] sm:hover:bg-[var(--primary-light)] text-[var(--text-primary)] font-medium"
                     >
                       Format CSV
@@ -579,17 +577,17 @@ export default function RekapPage() {
           ) : mode === 'harian' ? (
             /* Table Harian */
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[640px]">
                 <thead>
-                  <tr className="bg-primary-dark text-white">
-                    <th className="text-left py-3 px-4 font-semibold">Petugas</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Departemen</th>
-                    <th className="text-center py-3 px-4 font-semibold">Masuk</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-center py-3 px-4 font-semibold">Foto Masuk</th>
-                    <th className="text-center py-3 px-4 font-semibold">Keluar</th>
-                    <th className="text-center py-3 px-4 font-semibold">Status</th>
-                    <th className="text-center py-3 px-4 font-semibold">Foto Keluar</th>
+                  <tr className="bg-primary-dark text-white whitespace-nowrap">
+                    <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Petugas</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell whitespace-nowrap">Departemen</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Masuk</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Status</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Foto Masuk</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Keluar</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Status</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Foto Keluar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -604,16 +602,16 @@ export default function RekapPage() {
                           <p className="text-xs text-[var(--text-muted)] sm:hidden">{record.departemen}</p>
                         </div>
                       </td>
-                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)]">
+                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)] whitespace-nowrap">
                         {record.departemen}
                       </td>
-                      <td className="py-3 px-4 text-center font-mono">
+                      <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
                         {record.checkin ? new Date(record.checkin.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         <StatusBadge status={record.checkin?.status || null} />
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         {record.checkin?.photo ? (
                           <button
                             onClick={() => setPreviewPhoto({ url: record.checkin!.photo, nama: record.nama, type: 'Masuk' })}
@@ -630,13 +628,13 @@ export default function RekapPage() {
                           <span className="text-[var(--text-muted)]">-</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-center font-mono">
+                      <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
                         {record.checkout ? new Date(record.checkout.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         <StatusBadge status={record.checkout?.status || null} />
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
                         {record.checkout?.photo ? (
                           <button
                             onClick={() => setPreviewPhoto({ url: record.checkout!.photo, nama: record.nama, type: 'Keluar' })}
@@ -661,15 +659,15 @@ export default function RekapPage() {
           ) : (
             /* Table Bulanan */
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[620px]">
                 <thead>
-                  <tr className="bg-primary-dark text-white">
-                    <th className="text-left py-3 px-4 font-semibold w-12">No</th>
-                    <th className="text-left py-3 px-4 font-semibold">Petugas</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Gerai / Posisi</th>
-                    <th className="text-center py-3 px-4 font-semibold">Tepat Waktu</th>
-                    <th className="text-center py-3 px-4 font-semibold">Terlambat</th>
-                    <th className="text-center py-3 px-4 font-semibold">Total Hadir</th>
+                  <tr className="bg-primary-dark text-white whitespace-nowrap">
+                    <th className="text-center py-3 px-4 font-semibold w-12 whitespace-nowrap">No</th>
+                    <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Petugas</th>
+                    {/* <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Gerai / Posisi</th> */}
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Tepat Waktu</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Terlambat</th>
+                    <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Total Hadir</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -680,34 +678,34 @@ export default function RekapPage() {
                         index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'
                       }`}
                     >
-                      <td className="py-3 px-4 text-center font-medium text-[var(--text-muted)]">
+                      <td className="py-3 px-4 text-center font-medium text-[var(--text-muted)] whitespace-nowrap">
                         {index + 1}
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-medium text-[var(--text-primary)]">{r.nama}</p>
+                        <p className="font-semibold text-[var(--text-primary)]">{r.nama}</p>
                         <p className="text-xs text-[var(--text-muted)] font-mono">@{r.username}</p>
                       </td>
-                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)]">
+                      {/* <td className="py-3 px-4 text-[var(--text-secondary)] whitespace-nowrap">
                         {r.kode_gerai ? (
-                          <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs border border-gray-200">
+                          <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs border border-gray-200 whitespace-nowrap inline-block">
                             Gerai {r.kode_gerai}
                           </span>
                         ) : (
-                          r.departemen || r.user_type
+                          <span className="whitespace-nowrap">{r.departemen || r.user_type}</span>
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="badge badge-success font-semibold px-2.5 py-1">
+                      </td> */}
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <span className="px-2.5 py-1 text-[var(--text-secondary)] whitespace-nowrap inline-block">
                           {r.tepat_waktu} hari
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`badge ${r.terlambat > 0 ? 'badge-warning font-semibold' : 'badge-neutral'} px-2.5 py-1`}>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <span className={`px-2.5 py-1 whitespace-nowrap inline-block`}>
                           {r.terlambat} hari
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="font-bold text-sm text-[var(--primary-dark)] bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <span className="px-3 py-1 text-[var(--text-secondary)] whitespace-nowrap inline-block">
                           {r.total_hadir} hari
                         </span>
                       </td>

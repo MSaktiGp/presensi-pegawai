@@ -96,13 +96,16 @@ export default function JadwalPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-fade-in">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--primary-dark)]">Kelola Jadwal</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Atur shift jadwal petugas</p>
+        <div className="flex items-center justify-between gap-3 animate-fade-in">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur shift jadwal petugas</p>
           </div>
-          <button onClick={openNew} className="btn btn-primary text-sm min-h-[44px]">
-            <HiPlus className="w-4 h-4" /> Tambah Shift
+          <button 
+            onClick={openNew} 
+            className="btn btn-primary text-sm min-h-[44px]"
+          >
+            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
           </button>
         </div>
 
@@ -110,12 +113,16 @@ export default function JadwalPage() {
           <div className={`badge w-full !rounded-xl !py-3 !px-4 animate-fade-in ${notice.ok ? 'badge-success' : 'badge-danger'}`}>{notice.msg}</div>
         )}
 
-        <div className="card p-2 flex gap-1 flex-wrap">
+        <div className="card p-2 flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap">
           {Object.entries(FILTER_TYPE_LABEL).map(([value, label]) => (
             <button
               key={value}
               onClick={() => setFilterType(value)}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${filterType === value ? 'bg-[var(--primary-dark)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--primary-light)]'}`}
+              className={`flex-none sm:flex-1 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all ${
+                filterType === value
+                  ? 'bg-[var(--primary-dark)] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--primary-light)] bg-gray-50/80 sm:bg-transparent'
+              }`}
             >
               {label}
             </button>

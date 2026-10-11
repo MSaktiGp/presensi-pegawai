@@ -30,11 +30,61 @@ interface ReportData {
   report: AttendanceRecord[];
 }
 
+interface MonthlyRecord {
+  pegawai_id: number;
+  nama: string;
+  username: string;
+  departemen: string;
+  user_type: string;
+  sub_type: string | null;
+  kode_gerai: string | null;
+  tepat_waktu: number;
+  terlambat: number;
+  total_hadir: number;
+}
+
+interface MonthlyDetailRecord {
+  id: number;
+  date: string;
+  pegawai_id: number;
+  nama: string;
+  username: string;
+  departemen: string;
+  user_type: string;
+  sub_type: string | null;
+  kode_gerai: string | null;
+  checkin_time: string | null;
+  checkin_status: string | null;
+  checkout_time: string | null;
+  checkout_status: string | null;
+}
+
+interface MonthlyReportData {
+  month: number;
+  year: number;
+  summary: {
+    total_pegawai: number;
+    total_hadir: number;
+    tepat_waktu: number;
+    terlambat: number;
+  };
+  report: MonthlyRecord[];
+  details?: MonthlyDetailRecord[];
+}
+
 export default function RekapPage() {
   const allowed = useRoleGuard(ADMIN_ROLES);
 
+  const [mode, setMode] = useState<'harian' | 'bulanan'>('harian');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateAPI(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [monthlyData, setMonthlyData] = useState<MonthlyReportData | null>(null);
+
   const [filterDept, setFilterDept] = useState<string>('');
   const [searchName, setSearchName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -47,25 +97,59 @@ export default function RekapPage() {
 
     const fetchReport = async () => {
       setIsLoading(true);
-      const response = await api(`/admin/attendance-report?date=${selectedDate}`, { method: 'GET' });
-      if (response.success && response.data) {
-        setReportData(response.data);
+      if (mode === 'harian') {
+        const response = await api<ReportData>(`/admin/attendance-report?date=${selectedDate}`, { method: 'GET' });
+        if (response.success && response.data) {
+          setReportData(response.data);
+        }
+      } else {
+        const [year, month] = selectedMonth.split('-');
+        const response = await api<MonthlyReportData>(`/admin/monthly-attendance-report?month=${month}&year=${year}`, { method: 'GET' });
+        if (response.success && response.data) {
+          setMonthlyData(response.data);
+        }
       }
       setIsLoading(false);
     };
 
     fetchReport();
-  }, [selectedDate, allowed]);
+  }, [mode, selectedDate, selectedMonth, allowed]);
 
   // Filter records
-  const filteredRecords = reportData?.report.filter((record) => {
-    const matchDept = !filterDept || record.departemen === filterDept;
-    const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-    return matchDept && matchName;
-  }) || [];
+  const filteredRecords = mode === 'harian'
+    ? (reportData?.report.filter((record) => {
+        const matchDept = !filterDept || record.departemen === filterDept;
+        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+        return matchDept && matchName;
+      }) || [])
+    : [];
+
+  const filteredMonthlyRecords = mode === 'bulanan'
+    ? (monthlyData?.report.filter((record) => {
+        const matchDept = !filterDept || record.departemen === filterDept;
+        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+        return matchDept && matchName;
+      }) || [])
+    : [];
+
+  const filteredMonthlyDetails = mode === 'bulanan'
+    ? (monthlyData?.details?.filter((record) => {
+        const matchDept = !filterDept || record.departemen === filterDept;
+        const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
+        return matchDept && matchName;
+      }) || [])
+    : [];
 
   // Get unique departments
-  const departments = [...new Set(reportData?.report.map((r) => r.departemen) || [])];
+  const departments = mode === 'harian'
+    ? [...new Set(reportData?.report.map((r) => r.departemen).filter(Boolean) || [])]
+    : [...new Set(monthlyData?.report.map((r) => r.departemen).filter(Boolean) || [])];
+
+  const formatMonthLabel = (monthStr: string) => {
+    const [y, m] = monthStr.split('-').map(Number);
+    const date = new Date(y, m - 1, 1);
+    return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  };
 
   const getStatusLabel = (status: string | null) => {
     if (!status) return 'Belum';
@@ -92,39 +176,143 @@ export default function RekapPage() {
     }));
   };
 
+  const getMonthlyDetailExportData = () => {
+    return filteredMonthlyDetails.map((r, i) => {
+      let tglStr = r.date;
+      try {
+        const d = new Date(r.date + 'T00:00:00');
+        tglStr = d.toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+      } catch {}
+
+      const jamMasuk = r.checkin_time
+        ? new Date(r.checkin_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        : '-';
+      const jamPulang = r.checkout_time
+        ? new Date(r.checkout_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        : '-';
+
+      return {
+        'No': i + 1,
+        'Tanggal': tglStr,
+        'Nama': r.nama,
+        'Gerai / Username': r.kode_gerai || r.username,
+        'Departemen / Tipe': r.departemen || r.user_type,
+        'Jam Masuk': jamMasuk,
+        'Status Masuk': getStatusLabel(r.checkin_status),
+        'Jam Pulang': jamPulang,
+        'Status Pulang': getStatusLabel(r.checkout_status),
+      };
+    });
+  };
+
   const exportExcel = (format: 'csv' | 'xlsx') => {
-    if (!filteredRecords.length) return;
-    const data = getExportData();
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi");
-    XLSX.writeFile(workbook, `rekap_presensi_${selectedDate}.${format}`);
+    if (mode === 'harian') {
+      if (!filteredRecords.length) return;
+      const data = getExportData();
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Presensi Harian");
+      XLSX.writeFile(workbook, `rekap_presensi_${selectedDate}.${format}`);
+    } else {
+      if (!filteredMonthlyRecords.length && !filteredMonthlyDetails.length) return;
+      const detailData = getMonthlyDetailExportData();
+      const summaryData = filteredMonthlyRecords.map((r, i) => ({
+        'No': i + 1,
+        'Nama': r.nama,
+        'Username / Gerai': r.kode_gerai || r.username,
+        'Departemen / Tipe': r.departemen || r.user_type,
+        'Tepat Waktu (Hari)': r.tepat_waktu,
+        'Terlambat (Hari)': r.terlambat,
+        'Total Hadir (Hari)': r.total_hadir,
+      }));
+
+      if (format === 'xlsx') {
+        const workbook = XLSX.utils.book_new();
+        // Sheet 1: Rincian Jam Kehadiran Lengkap (Tanggal, Jam Masuk, Jam Pulang)
+        const detailSheet = XLSX.utils.json_to_sheet(detailData.length ? detailData : [{ 'Keterangan': 'Tidak ada data presensi' }]);
+        if (detailSheet['!ref']) {
+          detailSheet['!autofilter'] = { ref: detailSheet['!ref'] };
+        }
+        XLSX.utils.book_append_sheet(workbook, detailSheet, "Rincian Jam Kehadiran");
+        // Sheet 2: Ringkasan Bulanan (Akumulasi hari hadir)
+        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+        if (summarySheet['!ref']) {
+          summarySheet['!autofilter'] = { ref: summarySheet['!ref'] };
+        }
+        XLSX.utils.book_append_sheet(workbook, summarySheet, "Ringkasan Bulanan");
+        XLSX.writeFile(workbook, `rekap_presensi_bulanan_${selectedMonth}.xlsx`);
+      } else {
+        // CSV: Ekspor rincian jam kehadiran
+        const worksheet = XLSX.utils.json_to_sheet(detailData.length ? detailData : summaryData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Rincian Jam Kehadiran");
+        XLSX.writeFile(workbook, `rekap_presensi_bulanan_${selectedMonth}.csv`);
+      }
+    }
   };
 
   const exportPDF = () => {
-    if (!filteredRecords.length) return;
-    const doc = new jsPDF();
-    
-    doc.text(`Rekap Presensi Petugas MPP Kota Jambi`, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Tanggal: ${selectedDate} | Petugas: ${filterDept || 'Semua Petugas'}`, 14, 22);
+    if (mode === 'harian') {
+      if (!filteredRecords.length) return;
+      const doc = new jsPDF();
+      
+      doc.text(`Rekap Presensi Petugas MPP Kota Jambi`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Tanggal: ${selectedDate} | Petugas: ${filterDept || 'Semua Petugas'}`, 14, 22);
 
-    const head = [['No', 'Nama', 'Masuk', 'Status Masuk', 'Keluar', 'Status Keluar']];
-    const data = getExportData();
-    const body = data.map(r => [
-      r['No'], r['Nama'], r['Masuk'], r['Status Masuk'], r['Keluar'], r['Status Keluar']
-    ]);
+      const head = [['No', 'Nama', 'Masuk', 'Status Masuk', 'Keluar', 'Status Keluar']];
+      const data = getExportData();
+      const body = data.map(r => [
+        r['No'], r['Nama'], r['Masuk'], r['Status Masuk'], r['Keluar'], r['Status Keluar']
+      ]);
 
-    autoTable(doc, {
-      startY: 28,
-      head: head,
-      body: body,
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [30, 58, 138] },
-    });
+      autoTable(doc, {
+        startY: 28,
+        head: head,
+        body: body,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [30, 58, 138] },
+      });
 
-    doc.save(`rekap_presensi_${selectedDate}.pdf`);
+      doc.save(`rekap_presensi_${selectedDate}.pdf`);
+    } else {
+      const detailData = getMonthlyDetailExportData();
+      if (!detailData.length && !filteredMonthlyRecords.length) return;
+      const doc = new jsPDF();
+      
+      doc.text(`Rekap Presensi Bulanan Petugas MPP Kota Jambi`, 14, 15);
+      doc.setFontSize(10);
+      const targetLabel = searchName ? `Pencarian: "${searchName}"` : (filterDept || 'Semua Petugas');
+      doc.text(`Periode: ${formatMonthLabel(selectedMonth)} | ${targetLabel}`, 14, 22);
+
+      const head = [['No', 'Tanggal', 'Nama', 'Gerai / Dept', 'Jam Masuk', 'Status Masuk', 'Jam Pulang', 'Status Keluar']];
+      const body = detailData.map(r => [
+        r['No'],
+        r['Tanggal'],
+        r['Nama'],
+        r['Gerai / Username'],
+        r['Jam Masuk'],
+        r['Status Masuk'],
+        r['Jam Pulang'],
+        r['Status Pulang'],
+      ]);
+
+      autoTable(doc, {
+        startY: 28,
+        head: head,
+        body: body,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [30, 58, 138] },
+      });
+
+      doc.save(`rekap_presensi_bulanan_${selectedMonth}.pdf`);
+    }
   };
 
   if (!allowed) {
@@ -135,21 +323,51 @@ export default function RekapPage() {
     );
   }
 
+  const currentRecordsLength = mode === 'harian' ? filteredRecords.length : filteredMonthlyRecords.length;
+
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Page Header */}
-        <div className="animate-fade-in print:hidden">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] text-balance">
-            Rekap Data
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)] mt-1 text-pretty">
-            Presensi Petugas MPP Kota Jambi
-          </p>
+        {/* Page Header & Mode Toggle [Harian | Bulanan] */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 animate-fade-in print:hidden">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
+              Rekap Data
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1">
+              Presensi Petugas MPP Kota Jambi
+            </p>
+          </div>
+
+          {/* Mode Switcher Pill (Mobile: 50/50 Full-Width Thumb-Friendly | Desktop: Compact di Kanan) */}
+          <div className="grid grid-cols-2 sm:flex bg-white p-1 rounded-2xl border border-[var(--border-light)] shadow-sm w-full sm:w-fit shrink-0">
+            <button
+              type="button"
+              onClick={() => setMode('harian')}
+              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
+                mode === 'harian'
+                  ? 'bg-[var(--primary-dark)] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-gray-50'
+              }`}
+            >
+              Rekap Harian
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('bulanan')}
+              className={`flex items-center justify-center px-4 py-2 sm:py-1.5 rounded-2xl text-xs sm:text-sm font-semibold transition-all ${
+                mode === 'bulanan'
+                  ? 'bg-[var(--primary-dark)] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-gray-50'
+              }`}
+            >
+              Rekap Bulanan
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}
-        {reportData && (
+        {mode === 'harian' && reportData && (
           <div className="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 animate-slide-up print:hidden">
             <div className="card p-4 text-center">
               <p className="text-3xl font-bold text-[var(--primary-dark)]">
@@ -178,6 +396,35 @@ export default function RekapPage() {
           </div>
         )}
 
+        {mode === 'bulanan' && monthlyData && (
+          <div className="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 animate-slide-up print:hidden">
+            <div className="card p-4 text-center">
+              <p className="text-3xl font-bold text-[var(--primary-dark)]">
+                {monthlyData.summary.total_pegawai}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Total Pegawai</p>
+            </div>
+            <div className="card p-4 text-center border-l-4 border-l-[var(--primary-dark)]">
+              <p className="text-3xl font-bold text-[var(--primary-dark)]">
+                {monthlyData.summary.total_hadir}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Total Kehadiran</p>
+            </div>
+            <div className="card p-4 text-center border-l-4 border-l-[var(--success-green)]">
+              <p className="text-3xl font-bold text-[var(--success-green)]">
+                {monthlyData.summary.tepat_waktu}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Tepat Waktu</p>
+            </div>
+            <div className="card p-4 text-center border-l-4 border-l-[var(--warning-orange)]">
+              <p className="text-3xl font-bold text-[var(--warning-orange)]">
+                {monthlyData.summary.terlambat}
+              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">Terlambat</p>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="card p-4 animate-slide-up print:hidden">
           <div className="flex items-center gap-2 mb-4">
@@ -185,19 +432,34 @@ export default function RekapPage() {
             <h3 className="font-bold text-[var(--text-primary)] text-base">Filter Data</h3>
           </div>
           <div className="flex flex-col gap-3">
-            {/* Date picker */}
-            <div>
-              <label htmlFor="date-filter" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                Tanggal
-              </label>
-              <input
-                id="date-filter"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="input text-sm min-h-[44px] text-[var(--text-primary)] font-medium"
-              />
-            </div>
+            {/* Date/Month picker */}
+            {mode === 'harian' ? (
+              <div>
+                <label htmlFor="date-filter" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Tanggal
+                </label>
+                <input
+                  id="date-filter"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="input text-sm min-h-[44px] text-[var(--text-primary)] font-medium"
+                />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="month-filter" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Pilih Bulan & Tahun
+                </label>
+                <input
+                  id="month-filter"
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="input text-sm min-h-[44px] text-[var(--text-primary)] font-medium"
+                />
+              </div>
+            )}
 
             {/* Department filter */}
             <div>
@@ -243,10 +505,14 @@ export default function RekapPage() {
             <div className="text-[var(--primary-dark)]">
               <HiChartPie className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-[var(--text-primary)] text-base">Data Presensi Petugas</h3>
+            <h3 className="font-bold text-[var(--text-primary)] text-base">
+              {mode === 'harian' ? 'Data Presensi Petugas (Harian)' : 'Rekap Presensi Bulanan Petugas'}
+            </h3>
           </div>
           <p className="text-xs text-[var(--text-muted)] mb-3">
-            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} . {filterDept || 'Semua Petugas'}
+            {mode === 'harian'
+              ? `${new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} • ${filterDept || 'Semua Petugas'}`
+              : `Periode: ${formatMonthLabel(selectedMonth)} • ${filterDept || 'Semua Petugas'}`}
           </p>
           <div className="flex gap-2 mb-4 relative">
             <button onClick={exportPDF} className="btn bg-[#e11d48] hover:bg-[#be123c] text-white !py-2 !px-3 text-sm font-semibold rounded-lg border-none flex items-center gap-2">
@@ -303,14 +569,15 @@ export default function RekapPage() {
                 <p className="text-sm text-[var(--text-muted)]">Memuat laporan...</p>
               </div>
             </div>
-          ) : filteredRecords.length === 0 ? (
+          ) : currentRecordsLength === 0 ? (
             <div className="text-center py-16">
               <p className="text-[var(--text-secondary)] font-medium">Tidak ada data presensi</p>
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                {searchName || filterDept ? 'Coba ubah filter pencarian.' : 'Belum ada pegawai yang presensi pada tanggal ini.'}
+                {searchName || filterDept ? 'Coba ubah filter pencarian.' : 'Belum ada data presensi pada periode ini.'}
               </p>
             </div>
-          ) : (
+          ) : mode === 'harian' ? (
+            /* Table Harian */
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -329,8 +596,7 @@ export default function RekapPage() {
                   {filteredRecords.map((record, index) => (
                     <tr
                       key={record.pegawai_id || index}
-                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'
-                        }`}
+                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'}`}
                     >
                       <td className="py-3 px-4">
                         <div>
@@ -392,6 +658,64 @@ export default function RekapPage() {
                 </tbody>
               </table>
             </div>
+          ) : (
+            /* Table Bulanan */
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-primary-dark text-white">
+                    <th className="text-left py-3 px-4 font-semibold w-12">No</th>
+                    <th className="text-left py-3 px-4 font-semibold">Petugas</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell">Gerai / Posisi</th>
+                    <th className="text-center py-3 px-4 font-semibold">Tepat Waktu</th>
+                    <th className="text-center py-3 px-4 font-semibold">Terlambat</th>
+                    <th className="text-center py-3 px-4 font-semibold">Total Hadir</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMonthlyRecords.map((r, index) => (
+                    <tr
+                      key={r.pegawai_id || index}
+                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'
+                      }`}
+                    >
+                      <td className="py-3 px-4 text-center font-medium text-[var(--text-muted)]">
+                        {index + 1}
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="font-medium text-[var(--text-primary)]">{r.nama}</p>
+                        <p className="text-xs text-[var(--text-muted)] font-mono">@{r.username}</p>
+                      </td>
+                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)]">
+                        {r.kode_gerai ? (
+                          <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs border border-gray-200">
+                            Gerai {r.kode_gerai}
+                          </span>
+                        ) : (
+                          r.departemen || r.user_type
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="badge badge-success font-semibold px-2.5 py-1">
+                          {r.tepat_waktu} hari
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`badge ${r.terlambat > 0 ? 'badge-warning font-semibold' : 'badge-neutral'} px-2.5 py-1`}>
+                          {r.terlambat} hari
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="font-bold text-sm text-[var(--primary-dark)] bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                          {r.total_hadir} hari
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
@@ -434,5 +758,3 @@ export default function RekapPage() {
     </div>
   );
 }
-
-

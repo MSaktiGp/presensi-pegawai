@@ -120,7 +120,7 @@ export default function BerandaPage() {
 
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-4 mb-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
-          <Link href={user?.user_type === 'satpam' ? '/pilih-jadwal?type=checkin' : '/presensi?type=checkin'} className="bg-[#1B6CA8] rounded-xl p-5 text-white flex flex-col items-center justify-center gap-3 hover:bg-[#155A8F] transition-colors relative group">
+          <Link href="/presensi?type=checkin" className="bg-[#1B6CA8] rounded-xl p-5 text-white flex flex-col items-center justify-center gap-3 hover:bg-[#155A8F] transition-colors relative group">
             <div className="relative">
               <HiUserCircle size={48} />
               <div className="absolute -bottom-1 -right-1 bg-white text-[#1B6CA8] rounded-full p-0.5">
@@ -133,7 +133,7 @@ export default function BerandaPage() {
             </div>
           </Link>
           
-          <Link href={user?.user_type === 'satpam' ? '/pilih-jadwal?type=checkout' : '/presensi?type=checkout'} className="bg-[#1B6CA8] rounded-xl p-5 text-white flex flex-col items-center justify-center gap-3 hover:bg-[#155A8F] transition-colors relative group">
+          <Link href="/presensi?type=checkout" className="bg-[#1B6CA8] rounded-xl p-5 text-white flex flex-col items-center justify-center gap-3 hover:bg-[#155A8F] transition-colors relative group">
             <div className="relative">
               <HiUserCircle size={48} />
               <div className="absolute -bottom-1 -right-1 bg-white text-[#1B6CA8] rounded-full p-0.5">

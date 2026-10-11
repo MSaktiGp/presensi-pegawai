@@ -13,7 +13,7 @@ export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const hiddenPaths = ['/presensi', '/pilih-jadwal', '/riwayat-presensi'];
+  const hiddenPaths = ['/presensi', '/riwayat-presensi'];
   if (!isAuthenticated || pathname === '/' || hiddenPaths.includes(pathname)) return null;
 
   const handleLogout = () => {

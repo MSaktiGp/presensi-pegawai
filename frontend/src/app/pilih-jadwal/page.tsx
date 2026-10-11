@@ -19,14 +19,14 @@ function PilihJadwalContent() {
 
   const checkActive = (hour: number, shiftId: number, type: string) => {
     if (type === 'checkin') {
-      if (shiftId === 1) return hour >= 5 && hour < 13;
-      if (shiftId === 2) return hour >= 13 && hour < 21;
-      if (shiftId === 3) return hour >= 21 || hour < 5;
+      if (shiftId === 1) return hour >= 6 && hour < 14;
+      if (shiftId === 2) return hour >= 14 && hour < 22;
+      if (shiftId === 3) return hour >= 22 || hour < 6;
     } else {
       // checkout
-      if (shiftId === 1) return hour >= 14 && hour < 22;
-      if (shiftId === 2) return hour >= 22 || hour < 6;
-      if (shiftId === 3) return hour >= 6 && hour < 14;
+      if (shiftId === 1) return hour >= 15 && hour < 23;
+      if (shiftId === 2) return hour >= 23 || hour < 7;
+      if (shiftId === 3) return hour >= 7 && hour < 15;
     }
     return true;
   };

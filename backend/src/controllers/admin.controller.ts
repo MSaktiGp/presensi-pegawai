@@ -302,3 +302,148 @@ export const getAttemptLogs = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ success: false, message: 'Gagal mengambil log presensi.' });
   }
 };
+
+/**
+ * Monthly attendance report for employees — returns monthly aggregation per employee.
+ */
+export const getMonthlyAttendanceReport = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { month, year, departemen, user_type } = req.query;
+
+    const now = new Date();
+    const wib = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
+    const targetMonth = month ? Number(month) : wib.getMonth() + 1;
+    const targetYear = year ? Number(year) : wib.getFullYear();
+
+    let sql = `
+      SELECT 
+        p.id as pegawai_id,
+        p.nama,
+        p.username,
+        p.departemen,
+        p.user_type,
+        p.sub_type,
+        g.kode_gerai,
+        COUNT(CASE WHEN a.checkin_status = 'success' THEN 1 END) as tepat_waktu,
+        COUNT(CASE WHEN a.checkin_status = 'late' THEN 1 END) as terlambat,
+        COUNT(CASE WHEN a.checkin_status IS NOT NULL THEN 1 END) as total_hadir
+      FROM pegawai p
+      LEFT JOIN attendance a ON p.id = a.pegawai_id 
+        AND EXTRACT(YEAR FROM a.date) = $1 
+        AND EXTRACT(MONTH FROM a.date) = $2
+      LEFT JOIN gerai g ON p.gerai_id = g.id
+      WHERE p.is_active = TRUE
+        AND p.role NOT IN ('admin', 'superadmin')
+    `;
+    const params: any[] = [targetYear, targetMonth];
+
+    if (departemen) {
+      params.push(String(departemen));
+      sql += ` AND p.departemen = $${params.length}`;
+    }
+
+    if (user_type && user_type !== 'all') {
+      params.push(String(user_type));
+      sql += ` AND p.user_type = $${params.length}`;
+    }
+
+    sql += ' GROUP BY p.id, p.nama, p.username, p.departemen, p.user_type, p.sub_type, g.kode_gerai ORDER BY p.user_type, p.nama ASC';
+
+    const result = await query(sql, params);
+
+    const report = result.rows.map((row: any) => ({
+      pegawai_id: row.pegawai_id,
+      nama: row.nama,
+      username: row.username,
+      departemen: row.departemen,
+      user_type: row.user_type,
+      sub_type: row.sub_type,
+      kode_gerai: row.kode_gerai,
+      tepat_waktu: parseInt(row.tepat_waktu) || 0,
+      terlambat: parseInt(row.terlambat) || 0,
+      total_hadir: parseInt(row.total_hadir) || 0,
+    }));
+
+    const totalPegawai = report.length;
+    const totalHadirSemua = report.reduce((acc: number, r: any) => acc + r.total_hadir, 0);
+    const totalTepatWaktuSemua = report.reduce((acc: number, r: any) => acc + r.tepat_waktu, 0);
+    const totalTerlambatSemua = report.reduce((acc: number, r: any) => acc + r.terlambat, 0);
+
+    // Fetch individual daily attendance records for the month with precise timestamps
+    let detailSql = `
+      SELECT 
+        a.id,
+        a.date,
+        a.checkin_time,
+        a.checkin_status,
+        a.checkout_time,
+        a.checkout_status,
+        p.id as pegawai_id,
+        p.nama,
+        p.username,
+        p.departemen,
+        p.user_type,
+        p.sub_type,
+        g.kode_gerai
+      FROM attendance a
+      JOIN pegawai p ON a.pegawai_id = p.id
+      LEFT JOIN gerai g ON p.gerai_id = g.id
+      WHERE EXTRACT(YEAR FROM a.date) = $1 
+        AND EXTRACT(MONTH FROM a.date) = $2
+        AND p.is_active = TRUE
+        AND p.role NOT IN ('admin', 'superadmin')
+    `;
+    const detailParams: any[] = [targetYear, targetMonth];
+
+    if (departemen) {
+      detailParams.push(String(departemen));
+      detailSql += ` AND p.departemen = $${detailParams.length}`;
+    }
+
+    if (user_type && user_type !== 'all') {
+      detailParams.push(String(user_type));
+      detailSql += ` AND p.user_type = $${detailParams.length}`;
+    }
+
+    detailSql += ' ORDER BY p.nama ASC, a.date ASC';
+
+    const detailResult = await query(detailSql, detailParams);
+
+    const details = detailResult.rows.map((row: any) => ({
+      id: row.id,
+      date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
+      pegawai_id: row.pegawai_id,
+      nama: row.nama,
+      username: row.username,
+      departemen: row.departemen,
+      user_type: row.user_type,
+      sub_type: row.sub_type,
+      kode_gerai: row.kode_gerai,
+      checkin_time: row.checkin_time,
+      checkin_status: row.checkin_status,
+      checkout_time: row.checkout_time,
+      checkout_status: row.checkout_status,
+    }));
+
+    res.json({
+      success: true,
+      message: 'Success',
+      data: {
+        month: targetMonth,
+        year: targetYear,
+        summary: {
+          total_pegawai: totalPegawai,
+          total_hadir: totalHadirSemua,
+          tepat_waktu: totalTepatWaktuSemua,
+          terlambat: totalTerlambatSemua,
+        },
+        report,
+        details,
+      },
+    });
+  } catch (error) {
+    logger.error('Get monthly attendance report error', { error });
+    res.status(500).json({ success: false, message: 'Gagal mengambil rekap presensi bulanan.' });
+  }
+};
+

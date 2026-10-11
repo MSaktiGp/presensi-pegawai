@@ -67,14 +67,6 @@ export interface AttendanceResult {
  *   - Checkout: picks the shift whose jam_masuk is closest to today's checkin_time.
  */
 const getActiveShift = async (pegawaiId: number, userType: string, type: 'checkin' | 'checkout' = 'checkin'): Promise<ShiftInfo | null> => {
-  const shiftResult = await query(
-    `SELECT id, nama_shift, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days
-     FROM shift_config WHERE user_type = $1`,
-    [userType]
-  );
-
-  if (shiftResult.rows.length === 0) return null;
-
   const toShiftInfo = (row: any): ShiftInfo => ({
     id: row.id,
     nama_shift: row.nama_shift,
@@ -85,6 +77,34 @@ const getActiveShift = async (pegawaiId: number, userType: string, type: 'checki
     allowed_days: row.allowed_days || '0,1,2,3,4,5,6',
   });
 
+  // 1. Prioritaskan shift yang aktif di-assign khusus ke pegawai ini
+  // PENTING: Satpam TIDAK MENGGUNAKAN tabel penugasan shift tetap karena shift-nya dinamis
+  if (userType !== 'satpam') {
+    const assignedResult = await query(
+      `SELECT sc.id, sc.nama_shift, sc.jam_masuk, sc.jam_keluar,
+              sc.is_cross_midnight, sc.late_threshold_minutes, sc.allowed_days
+       FROM pegawai_shift_assignment psa
+       JOIN shift_config sc ON psa.shift_config_id = sc.id
+       WHERE psa.pegawai_id = $1 AND psa.is_active = TRUE
+       ORDER BY psa.created_at DESC
+       LIMIT 1`,
+      [pegawaiId]
+    );
+
+    if (assignedResult.rows.length > 0) {
+      return toShiftInfo(assignedResult.rows[0]);
+    }
+  }
+
+  // 2. Fallback dinamis berdasarkan user_type (misal: satpam shift berputar tanpa jadwal tetap)
+  const shiftResult = await query(
+    `SELECT id, nama_shift, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days
+     FROM shift_config WHERE user_type = $1 ORDER BY jam_masuk ASC`,
+    [userType]
+  );
+
+  if (shiftResult.rows.length === 0) return null;
+
   // Single shift → return directly
   if (shiftResult.rows.length === 1) return toShiftInfo(shiftResult.rows[0]);
 
@@ -93,14 +113,37 @@ const getActiveShift = async (pegawaiId: number, userType: string, type: 'checki
   let targetMinutes = wib.hour * 60 + wib.minute;
 
   if (type === 'checkout') {
-    const today = getWIBDateString();
     const att = await query(
-      `SELECT checkin_time FROM attendance WHERE pegawai_id = $1 AND date = $2 AND checkin_time IS NOT NULL`,
-      [pegawaiId, today]
+      `SELECT checkin_time FROM attendance 
+       WHERE pegawai_id = $1 AND checkin_time IS NOT NULL AND checkin_time >= NOW() - INTERVAL '24 hours'
+       ORDER BY checkin_time DESC LIMIT 1`,
+      [pegawaiId]
     );
     if (att.rows.length > 0) {
       const ciWib = getWIBParts(new Date(att.rows[0].checkin_time));
       targetMinutes = ciWib.hour * 60 + ciWib.minute;
+    }
+  }
+
+  // Logika khusus untuk SATPAM:
+  // Satpam memiliki 3 shift: Pagi (07:00), Siang (15:00), Malam (23:00).
+  // Satpam dapat melakukan presensi setidaknya 1 jam sebelum jam awal shift:
+  // - Shift Pagi (07:00 - 15:00): window checkin 06:00 s.d 13:59
+  // - Shift Siang (15:00 - 23:00): window checkin 14:00 s.d 21:59
+  // - Shift Malam (23:00 - 07:00): window checkin 22:00 s.d 05:59
+  if (userType === 'satpam') {
+    const shiftPagi = shiftResult.rows.find((r: any) => r.nama_shift === 'pagi' || r.jam_masuk.startsWith('07:'));
+    const shiftSiang = shiftResult.rows.find((r: any) => r.nama_shift === 'siang' || r.jam_masuk.startsWith('15:'));
+    const shiftMalam = shiftResult.rows.find((r: any) => r.nama_shift === 'malam' || r.jam_masuk.startsWith('23:'));
+
+    if (shiftPagi && shiftSiang && shiftMalam) {
+      if (targetMinutes >= 6 * 60 && targetMinutes < 14 * 60) {
+        return toShiftInfo(shiftPagi);
+      } else if (targetMinutes >= 14 * 60 && targetMinutes < 22 * 60) {
+        return toShiftInfo(shiftSiang);
+      } else {
+        return toShiftInfo(shiftMalam);
+      }
     }
   }
 
@@ -165,18 +208,6 @@ const isWithinWorkingHours = (
   type: 'checkin' | 'checkout',
   shift: ShiftInfo | null
 ): { allowed: boolean; message: string } => {
-  if (shift && shift.allowed_days && type === 'checkin') {
-    const dStr = new Date().toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE });
-    const wibDate = new Date(dStr);
-    const currentDay = wibDate.getDay().toString();
-    if (!shift.allowed_days.split(',').includes(currentDay)) {
-      return {
-        allowed: false,
-        message: `Hari ini bukan jadwal kerja untuk shift ${shift.nama_shift}.`,
-      };
-    }
-  }
-
   // Checkin validation
   if (type === 'checkin') {
     const wib = getWIBParts();
@@ -269,8 +300,9 @@ const isWithinWorkingHours = (
   if (shift.is_cross_midnight) {
     // Cross-midnight shift (e.g. malam 23:00 → 07:00)
     // Checkout is allowed after jam_keluar (which is in the AM next day)
-    // If current time is between 00:00 and jam_keluar, it's too early
-    if (currentTotalMinutes < checkoutMinutes) {
+    // If current time is before midnight (>= jam_masuk) or before jam_keluar, it's too early
+    const shiftStartMinutes = parseTimeToMinutes(shift.jam_masuk);
+    if (currentTotalMinutes >= shiftStartMinutes || currentTotalMinutes < checkoutMinutes) {
       const formattedKeluar = shift.jam_keluar.substring(0, 5);
       const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
       return {
@@ -320,7 +352,8 @@ const checkDuplicate = async (
 
   const result = await query(
     `SELECT ${type}_time FROM attendance 
-     WHERE pegawai_id = $1 AND date = $2 AND ${type}_time IS NOT NULL`,
+     WHERE pegawai_id = $1 AND (${type}_time >= NOW() - INTERVAL '24 hours' OR date = $2) AND ${type}_time IS NOT NULL
+     ORDER BY ${type}_time DESC LIMIT 1`,
     [pegawaiId, today]
   );
 
@@ -360,16 +393,13 @@ const isCheckinLate = (shift: ShiftInfo | null): boolean => {
   const lateAfterMinutes = shiftStartMinutes + shift.late_threshold_minutes;
 
   if (shift.is_cross_midnight) {
-    // Cross-midnight shift: late if checked in after (jam_masuk + threshold)
-    // Since jam_masuk is 23:00 and threshold is 60, late after 00:00
-    // We need to handle wrap-around
-    if (lateAfterMinutes >= 24 * 60) {
-      const wrappedLate = lateAfterMinutes - 24 * 60;
-      // If current time is between 00:00 and wrappedLate, not late
-      // If current time is after wrappedLate and before jam_masuk, late
-      return currentTotalMinutes > wrappedLate && currentTotalMinutes < shiftStartMinutes;
+    // Cross-midnight shift (misal malam 23:00 s.d 07:00)
+    if (currentTotalMinutes >= 12 * 60) {
+      return currentTotalMinutes > lateAfterMinutes;
+    } else {
+      const wrappedLate = lateAfterMinutes >= 24 * 60 ? lateAfterMinutes - 24 * 60 : 0;
+      return currentTotalMinutes > wrappedLate;
     }
-    return currentTotalMinutes > lateAfterMinutes;
   }
 
   return currentTotalMinutes > lateAfterMinutes;
@@ -402,7 +432,8 @@ export const processAttendance = async (
   }
   const { user_type, sub_type } = userResult.rows[0];
 
-  const currentDayNum = now.getDay(); // 0 = Sunday, 6 = Saturday
+  // Use WIB day of week (0 = Sunday, 6 = Saturday) to prevent UTC day boundary errors
+  const currentDayNum = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE })).getDay();
 
   // Hardcoded weekend rule for non-satpam
   if ((currentDayNum === 0 || currentDayNum === 6) && (user_type === 'pegawai_gerai' || (user_type === 'cs' && sub_type === 'resepsionis'))) {
@@ -514,13 +545,30 @@ export const processAttendance = async (
         [pegawaiId, today, latitude, longitude, distance, photoPath, status]
       );
     } else {
-      await query(
-        `INSERT INTO attendance (pegawai_id, date, checkout_time, checkout_latitude, checkout_longitude, checkout_distance_from_office, checkout_photo_path, checkout_status)
-         VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
-         ON CONFLICT (pegawai_id, date)
-         DO UPDATE SET checkout_time = NOW(), checkout_latitude = $3, checkout_longitude = $4, checkout_distance_from_office = $5, checkout_photo_path = $6, checkout_status = $7, updated_at = NOW()`,
-        [pegawaiId, today, latitude, longitude, distance, photoPath, status]
+      // Untuk checkout, utamakan update record presensi yang masih aktif (belum checkout) dalam 24 jam terakhir
+      const ongoing = await query(
+        `SELECT id FROM attendance
+         WHERE pegawai_id = $1 AND checkout_time IS NULL AND checkin_time >= NOW() - INTERVAL '24 hours'
+         ORDER BY checkin_time DESC LIMIT 1`,
+        [pegawaiId]
       );
+
+      if (ongoing.rows.length > 0) {
+        await query(
+          `UPDATE attendance
+           SET checkout_time = NOW(), checkout_latitude = $2, checkout_longitude = $3, checkout_distance_from_office = $4, checkout_photo_path = $5, checkout_status = $6, updated_at = NOW()
+           WHERE id = $1`,
+          [ongoing.rows[0].id, latitude, longitude, distance, photoPath, status]
+        );
+      } else {
+        await query(
+          `INSERT INTO attendance (pegawai_id, date, checkout_time, checkout_latitude, checkout_longitude, checkout_distance_from_office, checkout_photo_path, checkout_status)
+           VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7)
+           ON CONFLICT (pegawai_id, date)
+           DO UPDATE SET checkout_time = NOW(), checkout_latitude = $3, checkout_longitude = $4, checkout_distance_from_office = $5, checkout_photo_path = $6, checkout_status = $7, updated_at = NOW()`,
+          [pegawaiId, today, latitude, longitude, distance, photoPath, status]
+        );
+      }
     }
 
     // Log successful attempt
@@ -563,13 +611,26 @@ export const processAttendance = async (
 export const getTodayStatus = async (pegawaiId: number) => {
   const today = getWIBDateString();
 
-  const result = await query(
+  // 1. Cek apakah ada record presensi yang masih aktif (belum checkout) dalam 24 jam terakhir (misal shift malam cross-midnight)
+  let result = await query(
     `SELECT checkin_time, checkin_status, checkin_distance_from_office,
             checkout_time, checkout_status, checkout_distance_from_office
      FROM attendance
-     WHERE pegawai_id = $1 AND date = $2`,
-    [pegawaiId, today]
+     WHERE pegawai_id = $1 AND checkout_time IS NULL AND checkin_time >= NOW() - INTERVAL '24 hours'
+     ORDER BY checkin_time DESC LIMIT 1`,
+    [pegawaiId]
   );
+
+  // 2. Jika tidak ada yang belum checkout, ambil record hari ini
+  if (result.rows.length === 0) {
+    result = await query(
+      `SELECT checkin_time, checkin_status, checkin_distance_from_office,
+              checkout_time, checkout_status, checkout_distance_from_office
+       FROM attendance
+       WHERE pegawai_id = $1 AND date = $2`,
+      [pegawaiId, today]
+    );
+  }
 
   if (result.rows.length === 0) {
     return { checkin: null, checkout: null };

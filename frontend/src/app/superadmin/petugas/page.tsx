@@ -25,17 +25,30 @@ interface Petugas {
 interface Gerai { id: number; kode_gerai: string; nama_gerai: string; is_active: boolean }
 interface Shift { id: number; nama_shift: string; user_type: string; jam_masuk: string; jam_keluar: string; }
 
+const TYPE_LABELS: Record<string, string> = {
+  pegawai_gerai: 'Pegawai Gerai',
+  satpam: 'Satpam',
+  cs: 'Cleaning Service',
+  resepsionis: 'Resepsionis',
+  admin: 'Admin',
+};
+
 const TYPES = [
   { value: '', label: 'Semua' },
-  { value: 'admin', label: 'Admin' },
   { value: 'pegawai_gerai', label: 'Pegawai Gerai' },
   { value: 'satpam', label: 'Satpam' },
   { value: 'cs', label: 'Cleaning Service' },
   { value: 'resepsionis', label: 'Resepsionis' },
 ];
-const typeLabel = (t: string) => TYPES.find((x) => x.value === t)?.label ?? t;
+const FORM_TYPES = [
+  { value: 'pegawai_gerai', label: 'Pegawai Gerai' },
+  { value: 'satpam', label: 'Satpam' },
+  { value: 'cs', label: 'Cleaning Service' },
+  { value: 'resepsionis', label: 'Resepsionis' },
+];
+const typeLabel = (t: string) => TYPE_LABELS[t] ?? t;
 
-const EMPTY_FORM = { nama: '', username: '', departemen: '', password: '', user_type: 'satpam', gerai_id: '', shift_config_id: '' };
+const EMPTY_FORM = { nama: '', username: '', departemen: '', password: '', user_type: 'pegawai_gerai', gerai_id: '', shift_config_id: '' };
 
 export default function PetugasPage() {
   const allowed = useRoleGuard(['superadmin']);
@@ -76,7 +89,7 @@ export default function PetugasPage() {
   const openEdit = (p: Petugas) => {
     setForm({
       nama: p.nama, username: p.username, departemen: p.departemen ?? '', password: '',
-      user_type: p.user_type, gerai_id: p.nama_gerai ?? (p.gerai_id ? String(p.gerai_id) : ''),
+      user_type: p.user_type, gerai_id: p.kode_gerai ?? p.nama_gerai ?? '',
       shift_config_id: p.shift_config_id ? String(p.shift_config_id) : ''
     });
     setEditing(p);
@@ -88,13 +101,23 @@ export default function PetugasPage() {
     const isNew = editing === 'new';
     const body = isNew
       ? { ...form, gerai_id: form.gerai_id || null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
-      : { nama: form.nama, username: form.username, departemen: form.departemen, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null };
+      : {
+        nama: form.nama,
+        username: form.username,
+        departemen: form.departemen,
+        gerai_id: (editing as Petugas).user_type === 'pegawai_gerai' ? (form.gerai_id || null) : undefined,
+        shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null
+      };
     const r = isNew
       ? await api('/superadmin/pegawai', { method: 'POST', body })
       : await api(`/superadmin/pegawai/${(editing as Petugas).id}`, { method: 'PUT', body });
     setSaving(false);
     flash(r.success, r.message);
-    if (r.success) { setEditing(null); load(); }
+    if (r.success) {
+      setEditing(null);
+      load();
+      api<Gerai[]>('/superadmin/gerai').then((res) => res.success && res.data && setGerai(res.data));
+    }
   };
 
   const toggle = async (p: Petugas) => {
@@ -122,13 +145,16 @@ export default function PetugasPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 animate-fade-in">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--primary-dark)]">Manajemen Petugas</h1>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Kelola akun petugas alih daya di MPP</p>
+        <div className="flex items-center justify-between gap-3 animate-fade-in">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Manajemen Data</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Petugas MPP Kota Jambi</p>
           </div>
-          <button onClick={openNew} className="btn btn-primary text-sm min-h-[44px]">
-            <HiPlus className="w-4 h-4" /> Tambah Petugas
+          <button 
+            onClick={openNew} 
+            className="btn btn-primary text-sm shadow-sm min-h-[44px]"
+          >
+            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Petugas
           </button>
         </div>
 
@@ -136,13 +162,17 @@ export default function PetugasPage() {
           <div className={`badge w-full !rounded-xl !py-3 !px-4 animate-fade-in ${notice.ok ? 'badge-success' : 'badge-danger'}`}>{notice.msg}</div>
         )}
 
-        <div className="card p-4 flex flex-col sm:flex-row gap-3">
-          <div className="flex gap-1 flex-wrap">
+        <div className="card p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {TYPES.map((t) => (
               <button
                 key={t.value}
                 onClick={() => setFilterType(t.value)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${filterType === t.value ? 'bg-[var(--primary-dark)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--primary-light)]'}`}
+                className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all ${
+                  filterType === t.value
+                    ? 'bg-[var(--primary-dark)] text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--primary-light)] bg-gray-50/80 sm:bg-transparent'
+                }`}
               >
                 {t.label}
               </button>
@@ -170,7 +200,7 @@ export default function PetugasPage() {
                   <tr className="bg-primary-dark text-white text-left">
                     <th className="py-3 px-4 font-semibold">Nama</th>
                     <th className="py-3 px-4 font-semibold">Tipe</th>
-                    <th className="py-3 px-4 font-semibold hidden md:table-cell">Gerai / Sub</th>
+                    <th className="py-3 px-4 font-semibold hidden md:table-cell">Gerai/Sub</th>
                     <th className="py-3 px-4 font-semibold hidden md:table-cell">Shift</th>
                     <th className="py-3 px-4 font-semibold text-center">Status</th>
                     <th className="py-3 px-4 font-semibold text-center">Aksi</th>
@@ -184,18 +214,59 @@ export default function PetugasPage() {
                         <p className="text-xs text-[var(--text-muted)] font-mono">@{p.username}</p>
                       </td>
                       <td className="py-3 px-4 text-[var(--text-secondary)]">{typeLabel(p.user_type)}</td>
-                      <td className="py-3 px-4 hidden md:table-cell text-[var(--text-secondary)]">{p.kode_gerai ?? p.departemen ?? '-'}</td>
                       <td className="py-3 px-4 hidden md:table-cell text-[var(--text-secondary)]">
-                        {p.nama_shift ? <span className="capitalize">{p.nama_shift} <span className="text-xs font-mono text-[var(--text-muted)]">{p.jam_masuk?.slice(0, 5)}–{p.jam_keluar?.slice(0, 5)}</span></span> : '-'}
+                        {p.user_type === 'pegawai_gerai' ? (
+                          <span className="px-2 py-0.5 rounded text-xs">
+                            {p.kode_gerai || '-'}
+                          </span>
+                        ) : (
+                          p.departemen ?? '-'
+                        )}
+                      </td>
+                      <td className="py-3 px-4 hidden md:table-cell text-[var(--text-secondary)]">
+                        {p.user_type === 'admin' ? (
+                          <span className="text-xs text-[var(--text-muted)] italic">Tidak Perlu Shift</span>
+                        ) : p.user_type === 'satpam' ? (
+                          <span className="text-sm text-[var(--text-muted)] px-2 py-0.5 rounded-full">
+                            Dinamis (3 Shift)
+                          </span>
+                        ) : p.nama_shift ? (
+                          <span className="capitalize">{p.nama_shift} <span className="text-xs font-mono text-[var(--text-muted)]">{p.jam_masuk?.slice(0, 5)}–{p.jam_keluar?.slice(0, 5)}</span></span>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span className={`badge ${p.is_active ? 'badge-success' : 'badge-neutral'}`}>{p.is_active ? 'Aktif' : 'Nonaktif'}</span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex justify-center gap-1">
-                          <button onClick={() => openEdit(p)} title="Ubah" aria-label={`Ubah ${p.nama}`} className="p-2 rounded-lg text-[var(--primary-dark)] hover:bg-[var(--primary-light)]"><HiPencilSquare className="w-5 h-5" /></button>
-                          <button onClick={() => resetPw(p)} title="Reset password" aria-label={`Reset password ${p.nama}`} className="p-2 rounded-lg text-[var(--warning-orange)] hover:bg-[var(--warning-orange-light)]"><HiKey className="w-5 h-5" /></button>
-                          <button onClick={() => toggle(p)} title={p.is_active ? 'Nonaktifkan' : 'Aktifkan'} aria-label={`${p.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${p.nama}`} className={`p-2 rounded-lg ${p.is_active ? 'text-[var(--accent-red)] hover:bg-[var(--accent-red-light)]' : 'text-[var(--success-green)] hover:bg-[var(--success-green-light)]'}`}><HiPower className="w-5 h-5" /></button>
+                          <button
+                            onClick={() => openEdit(p)}
+                            disabled={!p.is_active}
+                            title={p.is_active ? 'Ubah' : 'Aktifkan akun terlebih dahulu untuk mengubah data'}
+                            aria-label={`Ubah ${p.nama}`}
+                            className={`p-2 rounded-lg transition-colors ${p.is_active ? 'text-[var(--primary-dark)] hover:bg-[var(--primary-light)]' : 'text-gray-300 cursor-not-allowed'}`}
+                          >
+                            <HiPencilSquare className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => resetPw(p)}
+                            disabled={!p.is_active}
+                            title={p.is_active ? 'Reset password' : 'Aktifkan akun terlebih dahulu untuk mereset password'}
+                            aria-label={`Reset password ${p.nama}`}
+                            className={`p-2 rounded-lg transition-colors ${p.is_active ? 'text-[var(--warning-orange)] hover:bg-[var(--warning-orange-light)]' : 'text-gray-300 cursor-not-allowed'}`}
+                          >
+                            <HiKey className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => toggle(p)}
+                            title={p.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                            aria-label={`${p.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${p.nama}`}
+                            className={`p-2 rounded-lg transition-colors ${p.is_active ? 'text-[var(--accent-red)] hover:bg-[var(--accent-red-light)]' : 'text-[var(--success-green)] hover:bg-[var(--success-green-light)]'}`}
+                          >
+                            <HiPower className="w-5 h-5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -217,41 +288,52 @@ export default function PetugasPage() {
             </div>
 
             {editing === 'new' && (
-              <>
-                <Field label="Tipe petugas *">
-                  <select value={form.user_type} onChange={set('user_type')} className="input text-sm">
-                    {TYPES.slice(1).map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </Field>
-                {form.user_type === 'pegawai_gerai' && (
-                  <Field label="Gerai *">
-                    <div className="relative">
-                      <input 
-                        required 
-                        value={form.gerai_id} 
-                        onChange={set('gerai_id')} 
-                        className="input text-sm w-full" 
-                        placeholder="Ketik nama gerai baru atau pilih..."
-                        list="gerai-options"
-                      />
-                      <datalist id="gerai-options">
-                        {gerai.filter((g) => g.is_active).map((g) => <option key={g.id} value={g.nama_gerai}>{g.kode_gerai} — {g.nama_gerai}</option>)}
-                      </datalist>
-                    </div>
-                  </Field>
-                )}
-                <Field label="Password (kosongkan = password123)"><input type="password" autoComplete="new-password" value={form.password} onChange={set('password')} className="input text-sm" /></Field>
-              </>
+              <Field label="Tipe petugas *">
+                <select value={form.user_type} onChange={set('user_type')} className="input text-sm">
+                  {FORM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </Field>
             )}
 
-            <Field label="Template Jadwal (Shift)">
-              <select value={form.shift_config_id} onChange={set('shift_config_id')} className="input text-sm">
-                <option value="">Tidak ada jadwal (bebas)</option>
-                {shifts.filter(s => s.user_type === (editing === 'new' ? form.user_type : (editing as Petugas).user_type)).map((s) => (
-                  <option key={s.id} value={s.id}>{s.nama_shift} ({s.jam_masuk.slice(0, 5)} - {s.jam_keluar.slice(0, 5)})</option>
-                ))}
-              </select>
-            </Field>
+            {((editing === 'new' ? form.user_type : (editing as Petugas).user_type) === 'pegawai_gerai') && (
+              <Field label="Kode Gerai">
+                <div className="relative">
+                  <input
+                    required
+                    value={form.gerai_id}
+                    onChange={set('gerai_id')}
+                    className="input text-sm w-full"
+                    placeholder="Contoh: 61A"
+                    list="gerai-options"
+                  />
+                  <datalist id="gerai-options">
+                    {gerai.filter((g) => g.is_active).map((g) => (
+                      <option key={g.id} value={g.kode_gerai}>{g.kode_gerai} — {g.nama_gerai}</option>
+                    ))}
+                  </datalist>
+                </div>
+              </Field>
+            )}
+
+            {editing === 'new' && (
+              <Field label="Password (kosongkan = password123)"><input type="password" autoComplete="new-password" value={form.password} onChange={set('password')} className="input text-sm" /></Field>
+            )}
+
+            {(editing === 'new' ? form.user_type : (editing as Petugas).user_type) === 'satpam' ? (
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-800">
+                <p className="font-semibold mb-0.5">Shift Dinamis (Otomatis)</p>
+                <p>Satpam tidak perlu di-assign shift tetap. Sistem secara otomatis menentukan Shift Pagi (07:00), Siang (15:00), atau Malam (23:00) saat satpam melakukan presensi datang.</p>
+              </div>
+            ) : (editing !== 'new' && (editing as Petugas).user_type === 'admin') ? null : (
+              <Field label="Template Jadwal (Shift)">
+                <select value={form.shift_config_id} onChange={set('shift_config_id')} className="input text-sm">
+                  <option value="">Tidak ada jadwal (bebas)</option>
+                  {shifts.filter(s => s.user_type === (editing === 'new' ? form.user_type : (editing as Petugas).user_type)).map((s) => (
+                    <option key={s.id} value={s.id}>{s.nama_shift} ({s.jam_masuk.slice(0, 5)} - {s.jam_keluar.slice(0, 5)})</option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setEditing(null)} className="btn btn-outline text-sm">Batal</button>

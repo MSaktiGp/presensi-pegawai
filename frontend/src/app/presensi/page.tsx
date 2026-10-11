@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { GeoPosition } from '@/lib/geolocation';
-import { getCurrentPeriod, getGreeting } from '@/lib/utils';
+import { getCurrentPeriod } from '@/lib/utils';
 import GeolocationStatus from '@/components/GeolocationStatus';
 import CameraCapture from '@/components/CameraCapture';
 import StatusBadge from '@/components/StatusBadge';
@@ -115,7 +115,8 @@ function PresensiPageContent() {
 
   const period = getCurrentPeriod();
   const canCheckin = !todayStatus.checkin;
-  const canCheckout = todayStatus.checkin && !todayStatus.checkout && (period === 'both' || period === 'checkout');
+  const isSatpam = user?.user_type === 'satpam';
+  const canCheckout = todayStatus.checkin && !todayStatus.checkout && (isSatpam || period === 'both' || period === 'checkout');
   // Radius sebenarnya (menggunakan radius dari database, default 100 meter)
   // const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 100);
   
@@ -272,7 +273,9 @@ function PresensiPageContent() {
                 ? 'Terima kasih atas kehadirannya hari ini.'
                 : isCheckin
                   ? 'Silakan kembali saat jam pulang.'
-                  : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
+                  : isSatpam
+                    ? 'Presensi keluar tersedia sesuai jam selesai shift Anda.'
+                    : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
             </p>
           </div>
         )}

@@ -209,13 +209,19 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
 
     let final_gerai_id = null;
     if (user_type === 'pegawai_gerai' && gerai_id) {
-      const gName = String(gerai_id).trim();
-      const existingGerai = await query('SELECT id FROM gerai WHERE nama_gerai ILIKE $1 OR kode_gerai ILIKE $1', [gName]);
+      const gInput = String(gerai_id).trim();
+      const existingGerai = await query(
+        'SELECT id, kode_gerai FROM gerai WHERE LOWER(kode_gerai) = LOWER($1) OR LOWER(nama_gerai) = LOWER($1)',
+        [gInput]
+      );
       if (existingGerai.rows.length > 0) {
         final_gerai_id = existingGerai.rows[0].id;
       } else {
-        const newCode = `G-${Date.now().toString().slice(-4)}`;
-        const newGerai = await query('INSERT INTO gerai (kode_gerai, nama_gerai) VALUES ($1, $2) RETURNING id', [newCode, gName]);
+        const cleanCode = gInput.toUpperCase();
+        const newGerai = await query(
+          'INSERT INTO gerai (kode_gerai, nama_gerai) VALUES ($1, $2) RETURNING id',
+          [cleanCode, `Gerai ${cleanCode}`]
+        );
         final_gerai_id = newGerai.rows[0].id;
       }
     }
@@ -245,7 +251,40 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
 export const updatePegawai = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nama, username, departemen, email, sub_type, shift_config_id } = req.body;
+    const { nama, username, departemen, email, sub_type, shift_config_id, gerai_id } = req.body;
+
+    const checkPegawai = await query('SELECT id, is_active FROM pegawai WHERE id = $1', [id]);
+    if (checkPegawai.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
+      return;
+    }
+    if (!checkPegawai.rows[0].is_active) {
+      res.status(400).json({ success: false, message: 'Pegawai sedang nonaktif. Aktifkan akun terlebih dahulu untuk mengubah data.' });
+      return;
+    }
+
+    let updatedGeraiId: number | null | undefined = undefined;
+    if (gerai_id !== undefined) {
+      if (!gerai_id) {
+        updatedGeraiId = null;
+      } else {
+        const gInput = String(gerai_id).trim();
+        const existingGerai = await query(
+          'SELECT id, kode_gerai FROM gerai WHERE LOWER(kode_gerai) = LOWER($1) OR LOWER(nama_gerai) = LOWER($1)',
+          [gInput]
+        );
+        if (existingGerai.rows.length > 0) {
+          updatedGeraiId = existingGerai.rows[0].id;
+        } else {
+          const cleanCode = gInput.toUpperCase();
+          const newGerai = await query(
+            'INSERT INTO gerai (kode_gerai, nama_gerai) VALUES ($1, $2) RETURNING id',
+            [cleanCode, `Gerai ${cleanCode}`]
+          );
+          updatedGeraiId = newGerai.rows[0].id;
+        }
+      }
+    }
 
     const result = await query(
       `UPDATE pegawai SET 
@@ -254,9 +293,14 @@ export const updatePegawai = async (req: Request, res: Response): Promise<void> 
         departemen = COALESCE($3, departemen),
         email = COALESCE($4, email),
         sub_type = COALESCE($5, sub_type),
+        gerai_id = CASE WHEN $6::boolean THEN $7::int ELSE gerai_id END,
         updated_at = NOW()
-       WHERE id = $6 RETURNING id, nama, username, user_type, sub_type, role`,
-      [nama, username, departemen, email, sub_type, id]
+       WHERE id = $8 RETURNING id, nama, username, user_type, sub_type, role`,
+      [
+        nama, username, departemen, email, sub_type,
+        updatedGeraiId !== undefined, updatedGeraiId === undefined ? null : updatedGeraiId,
+        id
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -319,6 +363,16 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
     const { new_password } = req.body;
+
+    const checkPegawai = await query('SELECT id, is_active FROM pegawai WHERE id = $1', [id]);
+    if (checkPegawai.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Pegawai tidak ditemukan.' });
+      return;
+    }
+    if (!checkPegawai.rows[0].is_active) {
+      res.status(400).json({ success: false, message: 'Pegawai sedang nonaktif. Aktifkan akun terlebih dahulu untuk mereset password.' });
+      return;
+    }
 
     const password = new_password || 'password123';
     const passwordHash = await bcrypt.hash(password, 10);

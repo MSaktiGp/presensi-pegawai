@@ -123,7 +123,7 @@ export default function LoginPage() {
               {/* Username */}
               <div>
                 <label htmlFor="username" className="block text-sm font-semibold text-[var(--text-secondary)] mb-1.5">
-                  Username / Nama Akun
+                  Username
                 </label>
                 <div className="relative">
                   <input

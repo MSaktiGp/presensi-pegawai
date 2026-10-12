@@ -16,6 +16,7 @@ interface ChartData {
     pegawai_gerai: ChartItem[];
     satpam: ChartItem[];
     cs: ChartItem[];
+    resepsionis?: ChartItem[];
   };
 }
 
@@ -118,6 +119,7 @@ export default function DashboardPage() {
             <BarChart title="Petugas Gerai" data={chart?.stats_by_type?.pegawai_gerai || []} />
             <BarChart title="Satpam" data={chart?.stats_by_type?.satpam || []} />
             <BarChart title="Cleaning Service" data={chart?.stats_by_type?.cs || []} />
+            <BarChart title="Resepsionis" data={chart?.stats_by_type?.resepsionis || []} />
           </div>
         )}
 

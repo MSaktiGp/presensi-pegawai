@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useRoleGuard } from '@/lib/permissions';
 import Modal from '@/components/Modal';
-import { HiPlus, HiPencilSquare, HiKey, HiPower } from 'react-icons/hi2';
+import { HiPlus, HiPencilSquare, HiKey, HiPower, HiEye, HiEyeSlash } from 'react-icons/hi2';
 
 interface Petugas {
   id: number;
@@ -48,7 +48,7 @@ const FORM_TYPES = [
 ];
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? t;
 
-const EMPTY_FORM = { nama: '', username: '', departemen: '', password: '', user_type: 'pegawai_gerai', gerai_id: '', shift_config_id: '' };
+const EMPTY_FORM = { nama: '', username: '', password: '', user_type: 'pegawai_gerai', gerai_id: '', shift_config_id: '' };
 
 export default function PetugasPage() {
   const allowed = useRoleGuard(['superadmin']);
@@ -63,6 +63,7 @@ export default function PetugasPage() {
 
   const [editing, setEditing] = useState<Petugas | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -85,26 +86,30 @@ export default function PetugasPage() {
     setTimeout(() => setNotice(null), 3500);
   };
 
-  const openNew = () => { setForm(EMPTY_FORM); setEditing('new'); };
+  const openNew = () => { setForm(EMPTY_FORM); setShowPassword(false); setEditing('new'); };
   const openEdit = (p: Petugas) => {
     setForm({
-      nama: p.nama, username: p.username, departemen: p.departemen ?? '', password: '',
+      nama: p.nama, username: p.username, password: '',
       user_type: p.user_type, gerai_id: p.kode_gerai ?? p.nama_gerai ?? '',
       shift_config_id: p.shift_config_id ? String(p.shift_config_id) : ''
     });
+    setShowPassword(false);
     setEditing(p);
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     const isNew = editing === 'new';
+    if (isNew && (!form.password || form.password.trim().length < 6)) {
+      flash(false, 'Password minimal 6 karakter.');
+      return;
+    }
+    setSaving(true);
     const body = isNew
-      ? { ...form, gerai_id: form.gerai_id || null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
+      ? { ...form, password: form.password.trim(), gerai_id: form.gerai_id || null, shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null }
       : {
         nama: form.nama,
         username: form.username,
-        departemen: form.departemen,
         gerai_id: (editing as Petugas).user_type === 'pegawai_gerai' ? (form.gerai_id || null) : undefined,
         shift_config_id: form.shift_config_id ? Number(form.shift_config_id) : null
       };
@@ -128,9 +133,17 @@ export default function PetugasPage() {
   };
 
   const resetPw = async (p: Petugas) => {
-    const pw = prompt(`Password baru untuk ${p.nama} (kosongkan = "password123"):`, '');
+    const pw = prompt(`Masukkan password baru untuk ${p.nama} (minimal 6 karakter):`, '');
     if (pw === null) return;
-    const r = await api(`/superadmin/pegawai/${p.id}/reset-password`, { method: 'PATCH', body: { new_password: pw || undefined } });
+    if (!pw.trim()) {
+      flash(false, 'Password baru wajib diisi.');
+      return;
+    }
+    if (pw.trim().length < 6) {
+      flash(false, 'Password minimal 6 karakter.');
+      return;
+    }
+    const r = await api(`/superadmin/pegawai/${p.id}/reset-password`, { method: 'PATCH', body: { new_password: pw.trim() } });
     flash(r.success, r.message);
   };
 
@@ -216,11 +229,13 @@ export default function PetugasPage() {
                       <td className="py-3 px-4 text-[var(--text-secondary)]">{typeLabel(p.user_type)}</td>
                       <td className="py-3 px-4 hidden md:table-cell text-[var(--text-secondary)]">
                         {p.user_type === 'pegawai_gerai' ? (
-                          <span className="px-2 py-0.5 rounded text-xs">
+                          <span className="px-2 py-0.5 text-sm">
                             {p.kode_gerai || '-'}
                           </span>
+                        ) : p.sub_type ? (
+                          <span className="capitalize">{p.sub_type.replace('_', ' ')}</span>
                         ) : (
-                          p.departemen ?? '-'
+                          <span className="text-[var(--text-muted)]">-</span>
                         )}
                       </td>
                       <td className="py-3 px-4 hidden md:table-cell text-[var(--text-secondary)]">
@@ -282,13 +297,10 @@ export default function PetugasPage() {
         <Modal title={editing === 'new' ? 'Tambah Petugas' : `Ubah ${editing.nama}`} onClose={() => setEditing(null)}>
           <form onSubmit={save} className="space-y-3">
             <Field label="Nama lengkap *"><input required value={form.nama} onChange={set('nama')} className="input text-sm" /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Username / Nama Login *"><input required value={form.username} onChange={set('username')} className="input text-sm" /></Field>
-              <Field label="Departemen"><input value={form.departemen} onChange={set('departemen')} className="input text-sm" /></Field>
-            </div>
+            <Field label="Username / Nama Login *"><input required value={form.username} onChange={set('username')} className="input text-sm" /></Field>
 
             {editing === 'new' && (
-              <Field label="Tipe petugas *">
+              <Field label="Posisi *">
                 <select value={form.user_type} onChange={set('user_type')} className="input text-sm">
                   {FORM_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
@@ -296,7 +308,7 @@ export default function PetugasPage() {
             )}
 
             {((editing === 'new' ? form.user_type : (editing as Petugas).user_type) === 'pegawai_gerai') && (
-              <Field label="Kode Gerai">
+              <Field label="Kode Gerai *">
                 <div className="relative">
                   <input
                     required
@@ -316,7 +328,29 @@ export default function PetugasPage() {
             )}
 
             {editing === 'new' && (
-              <Field label="Password (kosongkan = password123)"><input type="password" autoComplete="new-password" value={form.password} onChange={set('password')} className="input text-sm" /></Field>
+              <Field label="Password *">
+                <div className="relative">
+                  <input
+                    required
+                    minLength={6}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="Minimal 6 karakter"
+                    value={form.password}
+                    onChange={set('password')}
+                    className="input text-sm w-full pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                  >
+                    {showPassword ? <HiEyeSlash className="w-4 h-4" /> : <HiEye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </Field>
             )}
 
             {(editing === 'new' ? form.user_type : (editing as Petugas).user_type) === 'satpam' ? (

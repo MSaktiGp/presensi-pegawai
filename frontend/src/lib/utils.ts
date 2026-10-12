@@ -1,26 +1,26 @@
 /**
- * Format a timestamp to Indonesian locale time string.
+ * Format a timestamp to HH.MM (Indonesian format with dot separator).
  */
-export const formatTime = (timestamp: string | Date): string => {
+export const formatTime = (timestamp: string | Date | null): string => {
   if (!timestamp) return '-';
   const date = new Date(timestamp);
   return date.toLocaleTimeString('id-ID', {
     hour: '2-digit',
     minute: '2-digit',
-  });
+    hour12: false
+  }).replace(':', '.');
 };
 
 /**
- * Format a timestamp to Indonesian locale date string.
+ * Format a timestamp to dd/mm/yyyy.
  */
 export const formatDate = (timestamp: string | Date): string => {
   if (!timestamp) return '-';
   const date = new Date(timestamp);
   return date.toLocaleDateString('id-ID', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
 };
 
@@ -43,26 +43,6 @@ export const getGreeting = (): string => {
 };
 
 /**
- * Get current attendance period.
- * Checkin: always available. Checkout: from 16:30 (Friday from 11:00).
- */
-export const getCurrentPeriod = (): 'checkin' | 'checkout' | 'both' => {
-  const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  const day = now.getDay(); // 0=Sun, 5=Fri
-
-  const checkoutStartHour = day === 5 ? 11 : 16;
-  const checkoutStartMinute = day === 5 ? 0 : 30;
-
-  const currentTotal = hour * 60 + minute;
-  const targetTotal = checkoutStartHour * 60 + checkoutStartMinute;
-
-  if (currentTotal >= targetTotal) return 'both';
-  return 'checkin';
-};
-
-/**
  * Round distance to readable format.
  */
 export const formatDistance = (meters: number): string => {
@@ -71,4 +51,3 @@ export const formatDistance = (meters: number): string => {
   }
   return `${(meters / 1000).toFixed(1)} km`;
 };
-

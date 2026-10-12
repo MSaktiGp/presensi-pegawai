@@ -16,7 +16,7 @@ export default function GeolocationStatus({ onLocationUpdate, officeLocation }: 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const maxRadius = officeLocation?.max_radius || 100;
+  const maxRadius = officeLocation?.max_radius || 40;
 
   const fetchLocation = useCallback(async () => {
     setIsLoading(true);

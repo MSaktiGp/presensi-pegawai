@@ -106,10 +106,7 @@ if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     logger.info(`🚀 Server berjalan di http://localhost:${CONFIG.PORT}`);
     logger.info(`📍 Lokasi MPP: ${CONFIG.OFFICE_LAT}, ${CONFIG.OFFICE_LNG}`);
     logger.info(`📏 Radius maksimal: ${CONFIG.MAX_RADIUS_METERS}m`);
-    logger.info(`🕐 Jam masuk: tanpa batasan waktu`);
-    const monThuStart = `${String(CONFIG.CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.CHECKOUT_START_MINUTE).padStart(2, '0')}`;
-    const friStart = `${String(CONFIG.FRIDAY_CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.FRIDAY_CHECKOUT_START_MINUTE).padStart(2, '0')}`;
-    logger.info(`🕐 Jam keluar: mulai ${monThuStart} (Jumat: ${friStart})`);
+    logger.info(`🕐 Jam kerja: shift_config DB (Reguler pulang ${String(CONFIG.CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.CHECKOUT_START_MINUTE).padStart(2, '0')}, Jumat: ${String(CONFIG.FRIDAY_CHECKOUT_START_HOUR).padStart(2, '0')}:${String(CONFIG.FRIDAY_CHECKOUT_START_MINUTE).padStart(2, '0')})`);
   });
 }
 

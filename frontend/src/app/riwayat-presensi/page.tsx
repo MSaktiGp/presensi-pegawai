@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { formatDate, formatTime } from '@/lib/utils';
 import { useRoleGuard, PETUGAS_ROLES } from '@/lib/permissions';
 import SubHeader from '@/components/SubHeader';
 import { HiDocumentText } from 'react-icons/hi2';
@@ -39,29 +40,11 @@ export default function RiwayatPresensiPage() {
     fetchHistory();
   }, [isAuthenticated, isAuthorized]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
   const formatMonthYear = (monthStr: string) => {
     if (!monthStr) return '';
     const [year, month] = monthStr.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-  };
-
-  const formatTime = (timeString: string | null) => {
-    if (!timeString) return '-';
-    const date = new Date(timeString);
-    return date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).replace(':', '.');
   };
 
   if (authLoading || pageLoading) {

@@ -210,6 +210,7 @@ export const getMonthlyChart = async (req: Request, res: Response): Promise<void
     const statsResult = await query(
       `SELECT 
         p.user_type,
+        p.sub_type,
         p.nama as person_name,
         g.nama_gerai as gerai_name,
         COUNT(CASE WHEN a.checkin_status IS NOT NULL THEN 1 END) as hadir_count
@@ -219,14 +220,15 @@ export const getMonthlyChart = async (req: Request, res: Response): Promise<void
          AND EXTRACT(MONTH FROM a.date) = $2
        LEFT JOIN gerai g ON p.gerai_id = g.id
        WHERE p.is_active = TRUE AND p.role NOT IN ('admin', 'superadmin')
-       GROUP BY p.user_type, p.id, p.nama, g.nama_gerai`,
+       GROUP BY p.user_type, p.sub_type, p.id, p.nama, g.nama_gerai`,
       [targetYear, targetMonth]
     );
 
     const stats_by_type = {
       pegawai_gerai: [] as { label: string; hadir: number }[],
       satpam: [] as { label: string; hadir: number }[],
-      cs: [] as { label: string; hadir: number }[]
+      cs: [] as { label: string; hadir: number }[],
+      resepsionis: [] as { label: string; hadir: number }[]
     };
 
     const geraiMap = new Map<string, number>();
@@ -238,6 +240,8 @@ export const getMonthlyChart = async (req: Request, res: Response): Promise<void
         geraiMap.set(label, (geraiMap.get(label) || 0) + hadir);
       } else if (row.user_type === 'satpam') {
         stats_by_type.satpam.push({ label: row.person_name.split(' ')[0], hadir });
+      } else if (row.user_type === 'resepsionis' || (row.user_type === 'cs' && row.sub_type === 'resepsionis')) {
+        stats_by_type.resepsionis.push({ label: row.person_name.split(' ')[0], hadir });
       } else if (row.user_type === 'cs') {
         stats_by_type.cs.push({ label: row.person_name.split(' ')[0], hadir });
       }

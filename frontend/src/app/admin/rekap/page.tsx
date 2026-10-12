@@ -13,10 +13,23 @@ import * as XLSX from 'xlsx';
 interface AttendanceRecord {
   pegawai_id: number;
   nama: string;
+  username?: string;
   departemen: string;
+  user_type?: string;
+  sub_type?: string | null;
+  kode_gerai?: string | null;
+  nama_shift?: string | null;
   checkin: { time: string; status: string; distance: number; photo: string } | null;
   checkout: { time: string; status: string; distance: number; photo: string } | null;
 }
+
+const FILTER_TYPES = [
+  { value: '', label: 'Semua Petugas' },
+  { value: 'pegawai_gerai', label: 'Petugas Gerai' },
+  { value: 'satpam', label: 'Satpam' },
+  { value: 'cs', label: 'Cleaning Service' },
+  { value: 'resepsionis', label: 'Resepsionis' },
+];
 
 interface ReportData {
   date: string;
@@ -85,7 +98,7 @@ export default function RekapPage() {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyReportData | null>(null);
 
-  const [filterDept, setFilterDept] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
   const [searchName, setSearchName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; nama: string; type: string } | null>(null);
@@ -115,35 +128,41 @@ export default function RekapPage() {
     fetchReport();
   }, [mode, selectedDate, selectedMonth, allowed]);
 
+  const isTypeMatch = (record: { user_type?: string; sub_type?: string | null }) => {
+    if (!filterType) return true;
+    if (filterType === 'pegawai_gerai') return record.user_type === 'pegawai_gerai';
+    if (filterType === 'satpam') return record.user_type === 'satpam';
+    if (filterType === 'cs') return record.user_type === 'cs' && record.sub_type !== 'resepsionis';
+    if (filterType === 'resepsionis') return record.user_type === 'resepsionis' || (record.user_type === 'cs' && record.sub_type === 'resepsionis');
+    return true;
+  };
+
   // Filter records
   const filteredRecords = mode === 'harian'
     ? (reportData?.report.filter((record) => {
-      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchType = isTypeMatch(record);
       const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-      return matchDept && matchName;
+      return matchType && matchName;
     }) || [])
     : [];
 
   const filteredMonthlyRecords = mode === 'bulanan'
     ? (monthlyData?.report.filter((record) => {
-      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchType = isTypeMatch(record);
       const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-      return matchDept && matchName;
+      return matchType && matchName;
     }) || [])
     : [];
 
   const filteredMonthlyDetails = mode === 'bulanan'
     ? (monthlyData?.details?.filter((record) => {
-      const matchDept = !filterDept || record.departemen === filterDept;
+      const matchType = isTypeMatch(record);
       const matchName = !searchName || record.nama.toLowerCase().includes(searchName.toLowerCase());
-      return matchDept && matchName;
+      return matchType && matchName;
     }) || [])
     : [];
 
-  // Get unique departments
-  const departments = mode === 'harian'
-    ? [...new Set(reportData?.report.map((r) => r.departemen).filter(Boolean) || [])]
-    : [...new Set(monthlyData?.report.map((r) => r.departemen).filter(Boolean) || [])];
+  const currentFilterLabel = FILTER_TYPES.find(t => t.value === filterType)?.label || 'Semua Petugas';
 
   const formatMonthLabel = (monthStr: string) => {
     const [y, m] = monthStr.split('-').map(Number);
@@ -262,7 +281,7 @@ export default function RekapPage() {
 
       doc.text(`Rekap Presensi Petugas MPP Kota Jambi`, 14, 15);
       doc.setFontSize(10);
-      doc.text(`Tanggal: ${selectedDate} | Petugas: ${filterDept || 'Semua Petugas'}`, 14, 22);
+      doc.text(`Tanggal: ${selectedDate} | Petugas: ${currentFilterLabel}`, 14, 22);
 
       const head = [['No', 'Nama', 'Masuk', 'Status Masuk', 'Keluar', 'Status Keluar']];
       const data = getExportData();
@@ -287,7 +306,7 @@ export default function RekapPage() {
 
       doc.text(`Rekap Presensi Bulanan Petugas MPP Kota Jambi`, 14, 15);
       doc.setFontSize(10);
-      const targetLabel = searchName ? `Pencarian: "${searchName}"` : (filterDept || 'Semua Petugas');
+      const targetLabel = searchName ? `Pencarian: "${searchName}"` : currentFilterLabel;
       doc.text(`Periode: ${formatMonthLabel(selectedMonth)} | ${targetLabel}`, 14, 22);
 
       const head = [['No', 'Tanggal', 'Nama', 'Gerai / Dept', 'Jam Masuk', 'Status Masuk', 'Jam Pulang', 'Status Keluar']];
@@ -459,20 +478,19 @@ export default function RekapPage() {
               </div>
             )}
 
-            {/* Department filter */}
+            {/* Tipe Petugas filter */}
             <div>
-              <label htmlFor="dept-filter" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                Posisi Petugas
+              <label htmlFor="type-filter" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Tipe Petugas
               </label>
               <select
-                id="dept-filter"
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
+                id="type-filter"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
                 className="input text-sm min-h-[44px] text-[var(--text-primary)] font-medium"
               >
-                <option value="">Semua Petugas</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
+                {FILTER_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
@@ -509,8 +527,8 @@ export default function RekapPage() {
           </div>
           <p className="text-xs text-[var(--text-muted)] mb-3">
             {mode === 'harian'
-              ? `${new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} • ${filterDept || 'Semua Petugas'}`
-              : `Periode: ${formatMonthLabel(selectedMonth)} • ${filterDept || 'Semua Petugas'}`}
+              ? `${new Date(selectedDate + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })} • ${currentFilterLabel}`
+              : `Periode: ${formatMonthLabel(selectedMonth)} • ${currentFilterLabel}`}
           </p>
           <div className="flex gap-2 mb-4 relative">
             <button onClick={exportPDF} className="btn bg-[#e11d48] hover:bg-[#be123c] text-white !py-2 !px-3 text-sm font-semibold rounded-lg border-none flex items-center gap-2">
@@ -571,7 +589,7 @@ export default function RekapPage() {
             <div className="text-center py-16">
               <p className="text-[var(--text-secondary)] font-medium">Tidak ada data presensi</p>
               <p className="text-sm text-[var(--text-muted)] mt-1">
-                {searchName || filterDept ? 'Coba ubah filter pencarian.' : 'Belum ada data presensi pada periode ini.'}
+                {searchName || filterType ? 'Coba ubah filter pencarian.' : 'Belum ada data presensi pada periode ini.'}
               </p>
             </div>
           ) : mode === 'harian' ? (
@@ -581,7 +599,7 @@ export default function RekapPage() {
                 <thead>
                   <tr className="bg-primary-dark text-white whitespace-nowrap">
                     <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Petugas</th>
-                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell whitespace-nowrap">Departemen</th>
+                    <th className="text-left py-3 px-4 font-semibold hidden sm:table-cell whitespace-nowrap">Posisi/Gerai</th>
                     <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Masuk</th>
                     <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Status</th>
                     <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Foto Masuk</th>
@@ -597,13 +615,19 @@ export default function RekapPage() {
                       className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'}`}
                     >
                       <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-[var(--text-primary)]">{record.nama}</p>
-                          <p className="text-xs text-[var(--text-muted)] sm:hidden">{record.departemen}</p>
-                        </div>
+                        <p className="font-semibold text-[var(--text-primary)]">{record.nama}</p>
+                        <p className="text-xs text-[var(--text-muted)] font-mono">@{record.username}</p>
                       </td>
                       <td className="py-3 px-4 hidden sm:table-cell text-[var(--text-secondary)] whitespace-nowrap">
-                        {record.departemen}
+                        {record.user_type === 'pegawai_gerai' ? (
+                          <span className="px-2 py-0.5 text-sm">
+                            {record.kode_gerai ? `Gerai ${record.kode_gerai}` : 'Gerai'}
+                          </span>
+                        ) : record.sub_type ? (
+                          <span className="capitalize">{record.sub_type.replace('_', ' ')}</span>
+                        ) : (
+                          <span className="capitalize">{record.user_type || record.departemen || '-'}</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-center font-mono whitespace-nowrap">
                         {record.checkin ? new Date(record.checkin.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}
@@ -662,7 +686,7 @@ export default function RekapPage() {
               <table className="w-full text-sm min-w-[620px]">
                 <thead>
                   <tr className="bg-primary-dark text-white whitespace-nowrap">
-                    <th className="text-center py-3 px-4 font-semibold w-12 whitespace-nowrap">No</th>
+                    {/* <th className="text-center py-3 px-4 font-semibold w-12 whitespace-nowrap">No</th> */}
                     <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Petugas</th>
                     {/* <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Gerai / Posisi</th> */}
                     <th className="text-center py-3 px-4 font-semibold whitespace-nowrap">Tepat Waktu</th>
@@ -674,13 +698,11 @@ export default function RekapPage() {
                   {filteredMonthlyRecords.map((r, index) => (
                     <tr
                       key={r.pegawai_id || index}
-                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'
-                      }`}
+                      className={`border-b border-[var(--border-light)] transition-colors hover:bg-[var(--primary-light)]/50 ${index % 2 === 0 ? 'bg-white' : 'bg-[var(--bg-gray-light)]'}`}
                     >
-                      <td className="py-3 px-4 text-center font-medium text-[var(--text-muted)] whitespace-nowrap">
+                      {/* <td className="py-3 px-4 text-center font-medium text-[var(--text-muted)] whitespace-nowrap">
                         {index + 1}
-                      </td>
+                      </td> */}
                       <td className="py-3 px-4">
                         <p className="font-semibold text-[var(--text-primary)]">{r.nama}</p>
                         <p className="text-xs text-[var(--text-muted)] font-mono">@{r.username}</p>

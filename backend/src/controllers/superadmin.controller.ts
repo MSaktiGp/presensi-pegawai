@@ -188,6 +188,11 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    if (!password || String(password).trim().length < 6) {
+      res.status(400).json({ success: false, message: 'Password wajib diisi (minimal 6 karakter).' });
+      return;
+    }
+
     // Validate user_type
     const validTypes = ['admin', 'pegawai_gerai', 'satpam', 'cs', 'resepsionis'];
     if (!validTypes.includes(user_type)) {
@@ -202,7 +207,7 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password || 'password123', 10);
+    const passwordHash = await bcrypt.hash(String(password).trim(), 10);
 
     // Map user_type to role
     const role = user_type;
@@ -226,10 +231,28 @@ export const createPegawai = async (req: Request, res: Response): Promise<void> 
       }
     }
 
+    // Default departemen if not specified
+    let finalDept = departemen || null;
+    if (!finalDept) {
+      if (user_type === 'pegawai_gerai') {
+        finalDept = gerai_id ? `Gerai ${String(gerai_id).trim().toUpperCase()}` : 'Pelayanan Gerai';
+      } else if (user_type === 'satpam') {
+        finalDept = 'Keamanan';
+      } else if (user_type === 'cs') {
+        finalDept = sub_type === 'resepsionis' ? 'Pelayanan' : 'Kebersihan';
+      } else if (user_type === 'resepsionis') {
+        finalDept = 'Pelayanan';
+      } else if (user_type === 'admin' || user_type === 'superadmin') {
+        finalDept = 'IT';
+      } else {
+        finalDept = 'Pelayanan';
+      }
+    }
+
     const result = await query(
       `INSERT INTO pegawai (nama, username, departemen, email, password_hash, role, user_type, sub_type, gerai_id, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE) RETURNING id, nama, username, user_type, sub_type, role`,
-      [nama, username, departemen || null, email || null, passwordHash, role, user_type, sub_type || null, final_gerai_id]
+      [nama, username, finalDept, email || null, passwordHash, role, user_type, sub_type || null, final_gerai_id]
     );
 
     if (shift_config_id) {
@@ -374,7 +397,17 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const password = new_password || 'password123';
+    if (!new_password || !String(new_password).trim()) {
+      res.status(400).json({ success: false, message: 'Password baru wajib diisi.' });
+      return;
+    }
+
+    if (String(new_password).trim().length < 6) {
+      res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter.' });
+      return;
+    }
+
+    const password = String(new_password).trim();
     const passwordHash = await bcrypt.hash(password, 10);
 
     const result = await query(

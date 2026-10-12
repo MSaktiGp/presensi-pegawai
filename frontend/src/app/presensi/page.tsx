@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { GeoPosition } from '@/lib/geolocation';
-import { getCurrentPeriod } from '@/lib/utils';
+
 import GeolocationStatus from '@/components/GeolocationStatus';
 import CameraCapture from '@/components/CameraCapture';
 import StatusBadge from '@/components/StatusBadge';
@@ -113,15 +113,10 @@ function PresensiPageContent() {
     setIsSubmitting(false);
   };
 
-  const period = getCurrentPeriod();
   const canCheckin = !todayStatus.checkin;
-  const isSatpam = user?.user_type === 'satpam';
-  const canCheckout = todayStatus.checkin && !todayStatus.checkout && (isSatpam || period === 'both' || period === 'checkout');
-  // Radius sebenarnya (menggunakan radius dari database, default 100 meter)
-  // const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 100);
-  
-  // Radius pengetesan: 10 km (10000 meter)
-  const isWithinRadius = currentDistance !== null && currentDistance <= 10000;
+  const canCheckout = !!todayStatus.checkin && !todayStatus.checkout;
+  // Radius sebenarnya (menggunakan radius dari database, default 40 meter)
+  const isWithinRadius = currentDistance !== null && currentDistance <= (officeLocation?.max_radius || 40);
   const canSubmit = capturedPhoto && currentPosition && isWithinRadius && !isSubmitting;
 
   if (authLoading || !isAuthorized) {
@@ -152,18 +147,16 @@ function PresensiPageContent() {
         {/* Submit Result */}
         {submitResult && (
           <div
-            className={`card p-5 animate-slide-up border-l-4 ${
-              submitResult.success
+            className={`card p-5 animate-slide-up border-l-4 ${submitResult.success
                 ? 'border-l-[var(--success-green)] bg-[var(--success-green-light)]'
                 : 'border-l-[var(--accent-red)] bg-[var(--accent-red-light)]'
-            }`}
+              }`}
           >
             <div className="flex items-start gap-3">
               <span className="text-2xl">{submitResult.success ? <HiCheckCircle /> : <HiXCircle />}</span>
               <div>
-                <h3 className={`font-bold text-base ${
-                  submitResult.success ? 'text-[var(--success-green)]' : 'text-[var(--accent-red)]'
-                }`}>
+                <h3 className={`font-bold text-base ${submitResult.success ? 'text-[var(--success-green)]' : 'text-[var(--accent-red)]'
+                  }`}>
                   {submitResult.success
                     ? `Presensi ${submitResult.type === 'checkin' ? 'Masuk' : 'Keluar'} Berhasil`
                     : 'Presensi Gagal'}
@@ -264,7 +257,7 @@ function PresensiPageContent() {
             <h3 className="font-bold text-lg text-[var(--primary-dark)] mb-1">
               {todayStatus.checkin && todayStatus.checkout
                 ? 'Presensi Hari Ini Selesai!'
-                : isCheckin 
+                : isCheckin
                   ? 'Anda sudah melakukan presensi masuk hari ini.'
                   : 'Belum waktunya presensi keluar atau Anda belum presensi masuk.'}
             </h3>
@@ -273,9 +266,7 @@ function PresensiPageContent() {
                 ? 'Terima kasih atas kehadirannya hari ini.'
                 : isCheckin
                   ? 'Silakan kembali saat jam pulang.'
-                  : isSatpam
-                    ? 'Presensi keluar tersedia sesuai jam selesai shift Anda.'
-                    : `Presensi keluar tersedia mulai jam ${new Date().getDay() === 5 ? '11:00' : '16:30'}.`}
+                  : 'Silakan lakukan presensi masuk terlebih dahulu.'}
             </p>
           </div>
         )}

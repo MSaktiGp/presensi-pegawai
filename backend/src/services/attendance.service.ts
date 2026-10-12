@@ -214,20 +214,7 @@ const isWithinWorkingHours = (
     const currentTotalMinutes = wib.hour * 60 + wib.minute;
 
     if (!shift) {
-      // Legacy behavior
-      const defaultCheckinMinutes = CONFIG.DEFAULT_CHECKIN_HOUR * 60 + CONFIG.DEFAULT_CHECKIN_MINUTE;
-      const allowedStartMinutes = defaultCheckinMinutes - CONFIG.CHECKIN_EARLY_MINUTES;
-      if (currentTotalMinutes < allowedStartMinutes) {
-        const h = Math.floor(allowedStartMinutes / 60);
-        const m = allowedStartMinutes % 60;
-        const formattedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
-        return {
-          allowed: false,
-          message: `Presensi masuk tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
-        };
-      }
-      return { allowed: true, message: '' };
+      return { allowed: false, message: 'Tidak ada jadwal shift yang ditemukan. Hubungi admin.' };
     }
 
     const checkinMinutes = parseTimeToMinutes(shift.jam_masuk);
@@ -261,7 +248,7 @@ const isWithinWorkingHours = (
         };
       }
     }
-    
+
     return { allowed: true, message: '' };
   }
 
@@ -269,29 +256,8 @@ const isWithinWorkingHours = (
   const wib = getWIBParts();
   const currentTotalMinutes = wib.hour * 60 + wib.minute;
 
-  // If no shift found, use legacy defaults
   if (!shift) {
-    const dayName = new Intl.DateTimeFormat('en-US', {
-      timeZone: CONFIG.TIMEZONE,
-      weekday: 'short',
-    }).format(new Date());
-    const isFriday = dayName === 'Fri';
-
-    const startHour = isFriday ? CONFIG.FRIDAY_CHECKOUT_START_HOUR : CONFIG.CHECKOUT_START_HOUR;
-    const startMinute = isFriday ? CONFIG.FRIDAY_CHECKOUT_START_MINUTE : CONFIG.CHECKOUT_START_MINUTE;
-    const startTotalMinutes = startHour * 60 + startMinute;
-
-    if (currentTotalMinutes < startTotalMinutes) {
-      const label = isFriday ? 'Hari Jumat, presensi' : 'Presensi';
-      const formattedStart = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
-      const formattedCurrent = `${String(wib.hour).padStart(2, '0')}:${String(wib.minute).padStart(2, '0')}`;
-      return {
-        allowed: false,
-        message: `${label} keluar tersedia mulai jam ${formattedStart}. Saat ini jam ${formattedCurrent}.`,
-      };
-    }
-
-    return { allowed: true, message: '' };
+    return { allowed: false, message: 'Tidak ada jadwal shift yang ditemukan. Hubungi admin.' };
   }
 
   // Shift-based checkout validation
@@ -322,7 +288,7 @@ const isWithinWorkingHours = (
       }).format(new Date());
 
       if (dayName === 'Fri') {
-        effectiveCheckout = CONFIG.FRIDAY_CHECKOUT_START_HOUR * 60 + CONFIG.FRIDAY_CHECKOUT_START_MINUTE;
+        effectiveCheckout = CONFIG.FRIDAY_CHECKOUT_START_HOUR * 60 + CONFIG.FRIDAY_CHECKOUT_START_MINUTE; // Jumat pulang jam 11:00
       }
     }
 
@@ -384,9 +350,7 @@ const isCheckinLate = (shift: ShiftInfo | null): boolean => {
   const currentTotalMinutes = wib.hour * 60 + wib.minute;
 
   if (!shift) {
-    // Legacy fallback
-    const lateThresholdMinutes = CONFIG.CHECKIN_LATE_HOUR * 60 + CONFIG.CHECKIN_LATE_MINUTE;
-    return currentTotalMinutes > lateThresholdMinutes;
+    return false; // No shift = checkin already rejected upstream
   }
 
   const shiftStartMinutes = parseTimeToMinutes(shift.jam_masuk);
@@ -462,7 +426,7 @@ export const processAttendance = async (
       const allowedNames = allowedDaysArr.map(d => dayNames[parseInt(d)]).join(', ');
       const message = `Shift ${shift.nama_shift} hanya tersedia pada hari: ${allowedNames}.`;
       await logAttempt(pegawaiId, type, latitude, longitude, distance, 'outside_hours', message);
-      
+
       return {
         success: false,
         message,
@@ -640,17 +604,17 @@ export const getTodayStatus = async (pegawaiId: number) => {
   return {
     checkin: row.checkin_time
       ? {
-          time: row.checkin_time,
-          status: row.checkin_status,
-          distance: row.checkin_distance_from_office,
-        }
+        time: row.checkin_time,
+        status: row.checkin_status,
+        distance: row.checkin_distance_from_office,
+      }
       : null,
     checkout: row.checkout_time
       ? {
-          time: row.checkout_time,
-          status: row.checkout_status,
-          distance: row.checkout_distance_from_office,
-        }
+        time: row.checkout_time,
+        status: row.checkout_status,
+        distance: row.checkout_distance_from_office,
+      }
       : null,
   };
 };

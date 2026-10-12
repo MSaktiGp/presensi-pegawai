@@ -5,8 +5,7 @@ export const CONFIG = {
   // Office Location - MPP Kota Jambi
   OFFICE_LAT: parseFloat(process.env.OFFICE_LATITUDE || '-1.6281460837700956'),
   OFFICE_LNG: parseFloat(process.env.OFFICE_LONGITUDE || '103.60584106967069'),
-  // MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'), // Radius sebenarnya (40 meter)
-  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '10000'), // Radius pengetesan (10 km)
+  MAX_RADIUS_METERS: parseInt(process.env.MAX_RADIUS_METERS || '40'), // Radius sebenarnya (40 meter)
 
   // Timezone WIB (UTC+7)
   TIMEZONE: 'Asia/Jakarta',
@@ -64,24 +63,6 @@ export const ROLES = {
 } as const;
 
 export type Role = typeof ROLES[keyof typeof ROLES];
-
-// User type constants (same values as roles for normal users)
-export const USER_TYPES = {
-  PEGAWAI_GERAI: 'pegawai_gerai',
-  SATPAM: 'satpam',
-  CS: 'cs',
-} as const;
-
-export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES];
-
-// CS sub-types
-export const CS_SUB_TYPES = {
-  RESEPSIONIS: 'resepsionis',
-  CLEANING_SERVICE: 'cleaning_service',
-} as const;
-
-// Roles that can perform attendance
-export const ATTENDANCE_ROLES: Role[] = [ROLES.PEGAWAI_GERAI, ROLES.SATPAM, ROLES.CS];
 
 // Roles that can access admin dashboard
 export const ADMIN_ROLES: Role[] = [ROLES.ADMIN, ROLES.SUPERADMIN];

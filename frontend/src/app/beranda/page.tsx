@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { formatDate, formatTime } from '@/lib/utils';
 import { useRoleGuard, PETUGAS_ROLES } from '@/lib/permissions';
 import { HiUserCircle, HiBriefcase, HiClock } from 'react-icons/hi2';
 import Link from 'next/link';
@@ -39,24 +40,7 @@ export default function BerandaPage() {
 
 
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
 
-  const formatTime = (timeString: string | null) => {
-    if (!timeString) return '-';
-    const date = new Date(timeString);
-    return date.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).replace(':', '.');
-  };
 
   const today = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -127,12 +111,12 @@ export default function BerandaPage() {
                 <HiClock size={16} />
               </div>
             </div>
-            <span className="font-bold text-center leading-tight">Presensi<br/>Datang</span>
+            <span className="font-bold text-center leading-tight">Presensi<br />Datang</span>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
             </div>
           </Link>
-          
+
           <Link href="/presensi?type=checkout" className="bg-[#1B6CA8] rounded-xl p-5 text-white flex flex-col items-center justify-center gap-3 hover:bg-[#155A8F] transition-colors relative group">
             <div className="relative">
               <HiUserCircle size={48} />
@@ -140,7 +124,7 @@ export default function BerandaPage() {
                 <HiBriefcase size={16} />
               </div>
             </div>
-            <span className="font-bold text-center leading-tight">Presensi<br/>Pulang</span>
+            <span className="font-bold text-center leading-tight">Presensi<br />Pulang</span>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
             </div>
@@ -153,7 +137,7 @@ export default function BerandaPage() {
             <svg className="w-5 h-5 text-[#1B6CA8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <h3>Riwayat Presensi</h3>
           </div>
-          
+
           <div className="overflow-hidden rounded-lg border border-gray-200">
             <table className="w-full text-sm text-center">
               <thead className="bg-[#1B6CA8] text-white">
@@ -179,7 +163,7 @@ export default function BerandaPage() {
               </tbody>
             </table>
           </div>
-          
+
           <div className="mt-3 text-right">
             <Link href="/riwayat-presensi" className="text-[#1B6CA8] text-xs font-semibold hover:underline flex items-center justify-end gap-1">
               Lihat Riwayat Lengkap <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>

@@ -96,14 +96,14 @@ export default function JadwalPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="flex items-center justify-between gap-3 animate-fade-in">
+        <div className="flex flex-col gap-3 animate-fade-in">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur shift jadwal petugas</p>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur jadwal petugas</p>
           </div>
-          <button 
-            onClick={openNew} 
-            className="btn btn-primary text-sm min-h-[44px]"
+          <button
+            onClick={openNew}
+            className="btn btn-primary text-sm min-h-[44px] self-end"
           >
             <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
           </button>
@@ -118,11 +118,10 @@ export default function JadwalPage() {
             <button
               key={value}
               onClick={() => setFilterType(value)}
-              className={`flex-none sm:flex-1 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all ${
-                filterType === value
+              className={`flex-none sm:flex-1 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 transition-all ${filterType === value
                   ? 'bg-[var(--primary-dark)] text-white shadow-sm'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--primary-light)] bg-gray-50/80 sm:bg-transparent'
-              }`}
+                }`}
             >
               {label}
             </button>

@@ -49,8 +49,8 @@ export default function Header() {
           {/* Left - Branding */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
-              src="/LOGO-MPP-PUTIH.png"
-              alt="Logo MPP"
+              src="/SIPP_MPP_white.png"
+              alt="Logo Sipp-Mpp"
               className="w-24 h-10 sm:w-24 sm:h-14 object-contain flex-shrink-0"
             />
           </div>

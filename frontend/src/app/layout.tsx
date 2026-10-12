@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   description: "Sistem Presensi Kehadiran Pegawai MPP Kota Jambi. Presensi masuk dan keluar dengan validasi geolocation dan foto.",
   keywords: ["presensi", "kehadiran", "MPP", "Kota Jambi", "attendance"],
   icons: {
-    icon: "/logo-mpp.png",
-    apple: "/logo-mpp.png",
+    icon: "/SIPP_MPP_white.png",
+    apple: "/SIPP_MPP_white.png",
   },
 };
 

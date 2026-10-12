@@ -96,8 +96,8 @@ export default function JadwalPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        <div className="flex flex-col gap-3 animate-fade-in">
-          <div className="min-w-0">
+        <div className="flex gap-3 animate-fade-in">
+          <div className="min-w-0 flex-auto">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur jadwal petugas</p>
           </div>

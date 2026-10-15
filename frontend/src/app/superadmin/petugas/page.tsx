@@ -158,18 +158,48 @@ export default function PetugasPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        {/* ========================================================================= */}
+        {/* SETUP BARU: flex-col di mobile (tombol di bawah kanan), bersebelahan di desktop */}
+        {/* ========================================================================= */}
+        {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Manajemen Data</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Petugas MPP Kota Jambi</p>
+          </div> */}
+          {/* Tombol: di mobile berada di baris bawah kanan (self-end), di desktop sejajar (sm:self-auto) */}
+          {/* <button 
+            onClick={openNew} 
+            className="btn btn-primary text-sm shadow-sm min-h-[44px] self-end sm:self-auto"
+          >
+            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Petugas
+          </button>
+        </div> */}
+
+        {/* ========================================================================= */}
+        {/* SETUP LAMA / ALTERNATIF (SEBELUM PERUBAHAN):  
+        1. Setup awal: Bersebelahan di semua layar */}
         <div className="flex items-center justify-between gap-3 animate-fade-in">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Manajemen Data</h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Petugas MPP Kota Jambi</p>
           </div>
-          <button 
-            onClick={openNew} 
-            className="btn btn-primary text-sm shadow-sm min-h-[44px]"
-          >
+          <button onClick={openNew} className="btn btn-primary text-sm shadow-sm min-h-[22px]">
             <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Petugas
           </button>
         </div>
+
+         {/* 2. Setup murni flex-col di semua layar (selalu di baris bawah kanan): */}
+        {/* <div className="flex flex-col gap-3 animate-fade-in">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Manajemen Data</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Petugas MPP Kota Jambi</p>
+          </div>
+          <button onClick={openNew} className="btn btn-primary text-sm shadow-sm min-h-[44px] self-end">
+            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Petugas
+          </button>
+        </div>
+        */}
+        {/* ========================================================================= */}
 
         {notice && (
           <div className={`badge w-full !rounded-xl !py-3 !px-4 animate-fade-in ${notice.ok ? 'badge-success' : 'badge-danger'}`}>{notice.msg}</div>

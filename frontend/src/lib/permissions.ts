@@ -17,10 +17,10 @@ export interface NavItem {
 
 /** Single source of truth: which menu each role sees AND which page each role may open. */
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/admin', label: 'Dashboard', roles: ADMIN_ROLES },
-  { href: '/admin/rekap', label: 'Rekap Presensi', roles: ADMIN_ROLES },
-  { href: '/superadmin/petugas', label: 'Manajemen Petugas', roles: ['superadmin'] },
-  { href: '/superadmin/jadwal', label: 'Kelola Jadwal', roles: ['superadmin'] },
+  { href: '/admin', label: 'Dashboard Admin', roles: ADMIN_ROLES },
+  { href: '/admin/rekap', label: 'Rekap Data Petugas', roles: ADMIN_ROLES },
+  { href: '/superadmin/petugas', label: 'Manajemen Data Petugas', roles: ['superadmin'] },
+  { href: '/superadmin/jadwal', label: 'Kelola Jadwal Operasional', roles: ['superadmin'] },
 ];
 
 export const navFor = (role?: string) => NAV_ITEMS.filter((i) => i.roles.includes(role as Role));

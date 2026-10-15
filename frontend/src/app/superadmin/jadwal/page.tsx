@@ -97,47 +97,34 @@ export default function JadwalPage() {
     <div className="min-h-screen bg-[var(--bg-gray-light)] pb-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* ========================================================================= */}
-        {/* SETUP BARU: flex-col di mobile (tombol di bawah kanan), bersebelahan di desktop */}
         {/* ========================================================================= */}
-        {/* <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
+        {/* Header: Tombol ringkas "+ Tambah" di mobile, "+ Tambah Shift" di desktop */}
+        {/* ========================================================================= */}
+        <div className="flex items-center justify-between gap-3 animate-fade-in">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur jadwal petugas</p>
-          </div> */}
-          {/* Tombol: di mobile berada di baris bawah kanan (self-end), di desktop sejajar (sm:self-auto) */}
-          {/* <button
-            onClick={openNew}
-            className="btn btn-primary text-sm shadow-sm min-h-[24px] self-end sm:self-auto"
-          >
-            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
-          </button>
-        </div> */}
-
-        {/* ========================================================================= */}
-        {/* SETUP LAMA / ALTERNATIF (SEBELUM PERUBAHAN): */}
-        {
-        // 1. Setup awal: Bersebelahan dengan self-end
-        <div className="flex gap-3 animate-fade-in">
-          <div className="min-w-0 flex-auto">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur jadwal petugas</p>
           </div>
-          <button onClick={openNew} className="btn btn-primary text-sm min-h-[24px] self-end">
-            <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
+          {/* Tombol: "+ Tambah" di mobile, "+ Tambah Shift" di desktop */}
+          <button
+            onClick={openNew}
+            title="Tambah Shift"
+            aria-label="Tambah Shift"
+            className="btn btn-primary text-sm shadow-sm min-h-[40px] px-3 sm:px-4 shrink-0"
+          >
+            <HiPlus className="w-4 h-4" stroke="currentColor" strokeWidth={1.2} />
+            <span className="inline sm:hidden">Tambah</span>
+            <span className="hidden sm:inline">Tambah Shift</span>
           </button>
         </div>
 
-        // 2. Setup murni flex-col di semua layar (selalu di baris bawah kanan):
-        // <div className="flex flex-col gap-3 animate-fade-in">
-        //   <div className="min-w-0">
-        //     <h1 className="text-xl sm:text-2xl font-bold text-[var(--primary-dark)] truncate">Kelola Jadwal</h1>
-        //     <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1 truncate">Atur jadwal petugas</p>
-        //   </div>
-        //   <button onClick={openNew} className="btn btn-primary text-sm shadow-sm min-h-[44px] self-end">
-        //     <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
-        //   </button>
-        // </div>
-        }
+        {/* ========================================================================= */}
+        {/* SETUP LAMA (SEBELUM PERUBAHAN): Tombol selalu dengan teks di semua layar */}
+        {/*
+        <button onClick={openNew} className="btn btn-primary text-sm min-h-[24px] self-end">
+          <HiPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tambah Shift
+        </button>
+        */}
         {/* ========================================================================= */}
 
         {notice && (

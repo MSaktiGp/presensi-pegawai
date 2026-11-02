@@ -53,6 +53,7 @@ export default function BerandaPage() {
     if (userType === 'satpam') return 'Security';
     if (userType === 'cs') return subType === 'resepsionis' ? 'Resepsionis' : 'Cleaning Service';
     if (userType === 'pegawai_gerai') return 'Petugas Gerai';
+    if (userType === 'resepsionis') return 'Resepsionis';
     return userType || '-';
   };
 

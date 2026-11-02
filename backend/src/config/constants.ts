@@ -59,6 +59,7 @@ export const ROLES = {
   PEGAWAI_GERAI: 'pegawai_gerai',
   SATPAM: 'satpam',
   CS: 'cs',
+  RESEPSIONIS: 'resepsionis',
   ADMIN: 'admin',
   SUPERADMIN: 'superadmin',
 } as const;

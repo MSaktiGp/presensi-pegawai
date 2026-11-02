@@ -400,7 +400,7 @@ export const processAttendance = async (
   const currentDayNum = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE })).getDay();
 
   // Hardcoded weekend rule for non-satpam
-  if ((currentDayNum === 0 || currentDayNum === 6) && (user_type === 'pegawai_gerai' || (user_type === 'cs' && sub_type === 'resepsionis'))) {
+  if ((currentDayNum === 0 || currentDayNum === 6) && (user_type === 'pegawai_gerai' || user_type === 'resepsionis' || (user_type === 'cs' && sub_type === 'resepsionis'))) {
     const { distance } = isWithinRadius(latitude, longitude);
     const message = 'Hari Sabtu dan Minggu libur. Tidak dapat melakukan presensi.';
     await logAttempt(pegawaiId, type, latitude, longitude, distance, 'outside_hours', message);

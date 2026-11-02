@@ -1,13 +1,11 @@
 import { Router } from 'express';
 import { getAttendanceReport, getMonthlyAttendanceReport, getAttemptLogs, getMonthlyChart } from '../controllers/admin.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { authMiddleware, roleGuard } from '../middleware/auth.middleware';
 
 const router = Router();
 
 // All admin routes require authentication + admin role
-router.use(authMiddleware);
-router.use(adminAuthMiddleware);
+router.use(authMiddleware, roleGuard('admin', 'superadmin'));
 
 router.get('/attendance-report', getAttendanceReport);
 router.get('/monthly-attendance-report', getMonthlyAttendanceReport);

@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { roleGuard } from '../middleware/adminAuth.middleware';
+import { authMiddleware, roleGuard } from '../middleware/auth.middleware';
 import {
   listGerai, createGerai, updateGerai, toggleGerai,
   listPegawai, createPegawai, updatePegawai, togglePegawai, resetPassword,
@@ -11,8 +10,7 @@ import {
 const router = Router();
 
 // All routes require auth + superadmin
-router.use(authMiddleware);
-router.use(roleGuard('superadmin'));
+router.use(authMiddleware, roleGuard('superadmin'));
 
 // Dashboard stats
 router.get('/dashboard', getDashboardStats);

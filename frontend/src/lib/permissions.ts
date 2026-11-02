@@ -4,10 +4,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type Role = 'pegawai_gerai' | 'satpam' | 'cs' | 'admin' | 'superadmin';
+export type Role = 'pegawai_gerai' | 'satpam' | 'cs' | 'resepsionis' | 'admin' | 'superadmin';
 
 export const ADMIN_ROLES: Role[] = ['admin', 'superadmin'];
-export const PETUGAS_ROLES: Role[] = ['pegawai_gerai', 'satpam', 'cs'];
+export const PETUGAS_ROLES: Role[] = ['pegawai_gerai', 'satpam', 'cs', 'resepsionis'];
 
 export interface NavItem {
   href: string;

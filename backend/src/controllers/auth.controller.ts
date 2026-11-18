@@ -25,7 +25,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
               g.kode_gerai, g.nama_gerai
        FROM pegawai p
        LEFT JOIN gerai g ON p.gerai_id = g.id
-       WHERE LOWER(p.username) = LOWER($1) OR LOWER(p.nama) = LOWER($1)`,
+       WHERE LOWER(p.username) = LOWER($1)`,
       [username]
     );
 

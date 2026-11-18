@@ -14,15 +14,45 @@ import { logger } from './utils/logger';
 
 const app = express();
 
-// CORS — manual headers agar tidak konflik dengan middleware lain
+// Security headers
 app.use((_req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// CORS — whitelist trusted origins with Vercel preview support
+const ALLOWED_ORIGINS = [
+  CONFIG.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+].filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin) {
+    const isAllowed =
+      ALLOWED_ORIGINS.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      process.env.NODE_ENV !== 'production';
+
+    if (isAllowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 
   // Preflight
-  if (_req.method === 'OPTIONS') {
+  if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
   }
@@ -48,37 +78,23 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superadminRoutes);
 
-// Health check — diagnose DB and env issues
+// Health check — safe operational check without leaking internal reconnaissance data
 app.get('/api/health', async (_req, res) => {
-  const checks: Record<string, any> = {
-    api: true,
-    timestamp: new Date().toISOString(),
-    env: {
-      DATABASE_URL: !!process.env.DATABASE_URL,
-      JWT_SECRET: !!process.env.JWT_SECRET,
-      SUPABASE_URL: !!process.env.SUPABASE_URL,
-      NODE_ENV: process.env.NODE_ENV || 'not set',
-      VERCEL: process.env.VERCEL || 'not set',
-    },
-  };
-
-  // Test database connectivity
   try {
     const { query: dbQuery } = require('./config/database');
-    const result = await dbQuery('SELECT COUNT(*) as count FROM pegawai');
-    checks.database = { connected: true, pegawai_count: result.rows[0]?.count };
+    await dbQuery('SELECT 1');
+    res.status(200).json({
+      success: true,
+      message: 'Sistem Presensi MPP Kota Jambi — All systems operational',
+      timestamp: new Date().toISOString(),
+    });
   } catch (err: any) {
-    checks.database = { connected: false, error: err.message };
+    logger.error('Health check failed', { error: err.message });
+    res.status(503).json({
+      success: false,
+      message: 'Layanan basis data tidak tersedia.',
+    });
   }
-
-  const allOk = checks.api && checks.database?.connected && checks.env.DATABASE_URL;
-  res.status(allOk ? 200 : 503).json({
-    success: allOk,
-    message: allOk
-      ? 'Sistem Presensi MPP Kota Jambi — All systems operational'
-      : 'Some checks failed — see details',
-    data: checks,
-  });
 });
 
 // 404 handler

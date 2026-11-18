@@ -1,0 +1,29 @@
+meta {
+  name: Get User Data
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/attendance/user-data
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return user office location", function() {
+    expect(res.body.data).to.be.an('object');
+    expect(res.body.data.office_location).to.be.an('object');
+    expect(res.body.data.office_location.latitude).to.be.a('number');
+    expect(res.body.data.office_location.longitude).to.be.a('number');
+  });
+}

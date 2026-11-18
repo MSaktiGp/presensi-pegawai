@@ -3,42 +3,7 @@ import { CONFIG } from '../config/constants';
 import { isWithinRadius } from './geolocation.service';
 import { savePhoto } from './photo.service';
 import { logger } from '../utils/logger';
-
-/**
- * Get current date/time parts in WIB (Asia/Jakarta, UTC+7).
- */
-const getWIBParts = (date: Date = new Date()) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: CONFIG.TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(
-    formatter.formatToParts(date).map((p) => [p.type, p.value])
-  );
-  const hour = parseInt(parts.hour === '24' ? '0' : parts.hour, 10);
-  return {
-    year: parseInt(parts.year, 10),
-    month: parseInt(parts.month, 10),
-    day: parseInt(parts.day, 10),
-    hour,
-    minute: parseInt(parts.minute, 10),
-    second: parseInt(parts.second, 10),
-    dateString: `${parts.year}-${parts.month}-${parts.day}`,
-  };
-};
-
-/**
- * Get today's date string (YYYY-MM-DD) in WIB timezone.
- */
-const getWIBDateString = (): string => {
-  return getWIBParts().dateString;
-};
+import { getWIBParts, getWIBDateString } from '../utils/date';
 
 export interface ShiftInfo {
   id: number;
@@ -315,16 +280,17 @@ const checkDuplicate = async (
   type: 'checkin' | 'checkout'
 ): Promise<{ isDuplicate: boolean; lastTime?: string }> => {
   const today = getWIBDateString();
+  const timeColumn = type === 'checkin' ? 'checkin_time' : 'checkout_time';
 
   const result = await query(
-    `SELECT ${type}_time FROM attendance 
-     WHERE pegawai_id = $1 AND (${type}_time >= NOW() - INTERVAL '24 hours' OR date = $2) AND ${type}_time IS NOT NULL
-     ORDER BY ${type}_time DESC LIMIT 1`,
+    `SELECT ${timeColumn} FROM attendance 
+     WHERE pegawai_id = $1 AND (${timeColumn} >= NOW() - INTERVAL '24 hours' OR date = $2) AND ${timeColumn} IS NOT NULL
+     ORDER BY ${timeColumn} DESC LIMIT 1`,
     [pegawaiId, today]
   );
 
   if (result.rows.length > 0) {
-    const lastTime = result.rows[0][`${type}_time`];
+    const lastTime = result.rows[0][timeColumn];
     const timeDiff = (Date.now() - new Date(lastTime).getTime()) / (1000 * 60);
 
     if (timeDiff < CONFIG.DUPLICATE_WINDOW_MINUTES) {

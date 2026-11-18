@@ -1,0 +1,31 @@
+meta {
+  name: List Pegawai
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/superadmin/pegawai?user_type=satpam&is_active=true
+  body: none
+  auth: bearer
+}
+
+params:query {
+  user_type: satpam
+  is_active: true
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return pegawai list", function() {
+    expect(res.body.data).to.be.an('array');
+  });
+}

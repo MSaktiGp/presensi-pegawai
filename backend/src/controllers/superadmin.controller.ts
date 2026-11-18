@@ -3,6 +3,14 @@ import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { ROLES } from '../config/constants';
 import { logger } from '../utils/logger';
+import {
+  createGeraiSchema,
+  updateGeraiSchema,
+  createShiftSchema,
+  updateShiftSchema,
+  assignShiftSchema,
+  resetPasswordSchema,
+} from '../validators/superadmin.validator';
 
 // ============================================
 // GERAI CRUD
@@ -25,12 +33,13 @@ export const listGerai = async (_req: Request, res: Response): Promise<void> => 
 
 export const createGerai = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { kode_gerai, nama_gerai } = req.body;
-
-    if (!kode_gerai || !nama_gerai) {
-      res.status(400).json({ success: false, message: 'Kode gerai dan nama gerai wajib diisi.' });
+    const validation = createGeraiSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
       return;
     }
+
+    const { kode_gerai, nama_gerai, password } = validation.data;
 
     // Check duplicate
     const existing = await query('SELECT id FROM gerai WHERE LOWER(kode_gerai) = LOWER($1)', [kode_gerai]);
@@ -45,7 +54,8 @@ export const createGerai = async (req: Request, res: Response): Promise<void> =>
     );
 
     // Also create a pegawai_gerai account for this gerai
-    const defaultPassword = await bcrypt.hash('password123', 10);
+    const initialPassword = password || 'password123';
+    const defaultPassword = await bcrypt.hash(initialPassword, 10);
     await query(
       `INSERT INTO pegawai (nama, username, departemen, password_hash, role, user_type, gerai_id, is_active)
        VALUES ($1, $2, 'Pelayanan', $3, $4, $5, $6, TRUE)`,
@@ -87,7 +97,12 @@ export const createGerai = async (req: Request, res: Response): Promise<void> =>
 export const updateGerai = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { kode_gerai, nama_gerai } = req.body;
+    const validation = updateGeraiSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
+      return;
+    }
+    const { kode_gerai, nama_gerai } = validation.data;
 
     const result = await query(
       'UPDATE gerai SET kode_gerai = COALESCE($1, kode_gerai), nama_gerai = COALESCE($2, nama_gerai), updated_at = NOW() WHERE id = $3 RETURNING *',
@@ -385,7 +400,13 @@ export const togglePegawai = async (req: Request, res: Response): Promise<void> 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { new_password } = req.body;
+
+    const validation = resetPasswordSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
+      return;
+    }
+    const { new_password } = validation.data;
 
     const checkPegawai = await query('SELECT id, is_active FROM pegawai WHERE id = $1', [id]);
     if (checkPegawai.rows.length === 0) {
@@ -394,16 +415,6 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     }
     if (!checkPegawai.rows[0].is_active) {
       res.status(400).json({ success: false, message: 'Pegawai sedang nonaktif. Aktifkan akun terlebih dahulu untuk mereset password.' });
-      return;
-    }
-
-    if (!new_password || !String(new_password).trim()) {
-      res.status(400).json({ success: false, message: 'Password baru wajib diisi.' });
-      return;
-    }
-
-    if (String(new_password).trim().length < 6) {
-      res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter.' });
       return;
     }
 
@@ -444,12 +455,13 @@ export const listShifts = async (_req: Request, res: Response): Promise<void> =>
 
 export const createShift = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = req.body;
-
-    if (!nama_shift || !user_type || !jam_masuk || !jam_keluar) {
-      res.status(400).json({ success: false, message: 'Nama shift, tipe petugas, jam masuk, dan jam keluar wajib diisi.' });
+    const validation = createShiftSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
       return;
     }
+
+    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = validation.data;
 
     const result = await query(
       `INSERT INTO shift_config (nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days)
@@ -468,7 +480,13 @@ export const createShift = async (req: Request, res: Response): Promise<void> =>
 export const updateShift = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = req.body;
+    const validation = updateShiftSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
+      return;
+    }
+
+    const { nama_shift, user_type, jam_masuk, jam_keluar, is_cross_midnight, late_threshold_minutes, allowed_days } = validation.data;
 
     const updates = [];
     const values = [];
@@ -533,12 +551,13 @@ export const deleteShift = async (req: Request, res: Response): Promise<void> =>
 
 export const assignShift = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { pegawai_id, shift_config_id, tanggal_mulai } = req.body;
-
-    if (!pegawai_id || !shift_config_id) {
-      res.status(400).json({ success: false, message: 'Pegawai dan shift wajib dipilih.' });
+    const validation = assignShiftSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({ success: false, message: validation.error.issues[0].message });
       return;
     }
+
+    const { pegawai_id, shift_config_id, tanggal_mulai } = validation.data;
 
     // Deactivate existing assignment
     await query(

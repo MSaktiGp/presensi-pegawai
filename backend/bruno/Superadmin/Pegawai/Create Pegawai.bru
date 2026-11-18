@@ -1,0 +1,32 @@
+meta {
+  name: Create Pegawai
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/superadmin/pegawai
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+body:json {
+  {
+    "nama": "John Doe",
+    "username": "johndoe",
+    "password": "password123",
+    "user_type": "satpam",
+    "shift_config_id": 1
+  }
+}
+
+tests {
+  test("should return success or duplicate error", function() {
+    expect(res.status).to.be.oneOf([200, 400]);
+    expect(res.body).to.be.an('object');
+  });
+}

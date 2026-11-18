@@ -64,7 +64,7 @@ export default function Header() {
                   <button
                     key={item.href}
                     onClick={() => go(item.href)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${itemClass(item.href)}`}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${itemClass(item.href)}`}
                   >
                     {item.label}
                   </button>
@@ -74,7 +74,7 @@ export default function Header() {
 
             {/* User info (desktop) */}
             <div className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-sm font-medium">{getGreeting()}, {user?.nama}</span>
+              <span className="text-sm font-medium whitespace-nowrap">{getGreeting()}, {user?.nama}</span>
               <span className="text-xs text-white/60">{user?.departemen}</span>
             </div>
 

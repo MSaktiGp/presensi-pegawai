@@ -1,0 +1,19 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/health
+  body: none
+  auth: none
+}
+
+tests {
+  test("should return status 200 or 503", function() {
+    expect(res.status).to.be.oneOf([200, 503]);
+    expect(res.body).to.be.an('object');
+    expect(res.body.data).to.be.an('object');
+  });
+}

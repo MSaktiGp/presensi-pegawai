@@ -13,3 +13,15 @@ export const apiRateLimiter = rateLimit({
   validate: false, // Disable validations (like IPv6 key check)
 });
 
+export const loginRateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 20, // 20 attempts per 5 min per IP
+  message: {
+    success: false,
+    message: 'Terlalu banyak percobaan login. Silakan coba lagi dalam beberapa menit.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+});
+

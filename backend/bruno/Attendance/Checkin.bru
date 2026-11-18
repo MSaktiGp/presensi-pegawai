@@ -1,0 +1,30 @@
+meta {
+  name: Checkin
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{BASE_URL}}/api/attendance/checkin
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+body:json {
+  {
+    "latitude": -1.6281,
+    "longitude": 103.6058,
+    "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
+  }
+}
+
+tests {
+  test("should return response", function() {
+    expect(res.status).to.be.oneOf([200, 400]);
+    expect(res.body).to.be.an('object');
+  });
+}

@@ -2,16 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../config/database';
 import { CONFIG } from '../config/constants';
 import { logger } from '../utils/logger';
-
-/** Get today's date string (YYYY-MM-DD) in WIB timezone. */
-const getWIBDateString = (): string => {
-  const now = new Date();
-  const wib = new Date(now.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
-  const year = wib.getFullYear();
-  const month = String(wib.getMonth() + 1).padStart(2, '0');
-  const day = String(wib.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { getWIBDateString } from '../utils/date';
 
 export const getAttendanceReport = async (req: Request, res: Response): Promise<void> => {
   try {

@@ -1,0 +1,26 @@
+meta {
+  name: Delete Shift
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{BASE_URL}}/api/superadmin/shifts/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: 1
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success or error", function() {
+    expect(res.status).to.be.oneOf([200, 400, 404]);
+    expect(res.body).to.be.an('object');
+  });
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Get Profile
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/auth/profile
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return user profile", function() {
+    expect(res.body.data).to.be.an('object');
+    expect(res.body.data.username).to.be.a('string');
+  });
+}

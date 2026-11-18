@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { attendanceSchema } from '../validators/attendance.validator';
-import { processAttendance, getTodayStatus } from '../services/attendance.service';
+import { processAttendance, getTodayStatus, getAttendanceHistory } from '../services/attendance.service';
 import { CONFIG } from '../config/constants';
 import { logger } from '../utils/logger';
 
@@ -123,7 +123,7 @@ export const getHistory = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
     const limit = parseInt(req.query.limit as string) || 5;
-    const history = await require('../services/attendance.service').getAttendanceHistory(req.user.id, limit);
+    const history = await getAttendanceHistory(req.user.id, limit);
     res.json({ success: true, message: 'Success', data: history });
   } catch (error) {
     logger.error('Get history error', { error });

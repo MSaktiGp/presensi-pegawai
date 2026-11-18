@@ -1,6 +1,5 @@
 # Ignore markdown files for development
-*.md
-*.MD
+Production/
 
 # Graphify knowledge graph outputs
 graphify-out/

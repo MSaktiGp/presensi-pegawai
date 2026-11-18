@@ -1,0 +1,33 @@
+meta {
+  name: Monthly Report
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/admin/monthly-attendance-report?month=11&year=2026&user_type=all
+  body: none
+  auth: bearer
+}
+
+params:query {
+  month: 11
+  year: 2026
+  user_type: all
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return monthly attendance report data", function() {
+    expect(res.body.data).to.be.an('object');
+    expect(res.body.data.report).to.be.an('array');
+  });
+}

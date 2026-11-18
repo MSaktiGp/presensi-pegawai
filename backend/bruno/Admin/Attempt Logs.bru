@@ -1,0 +1,31 @@
+meta {
+  name: Attempt Logs
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/admin/attempt-logs?date=2026-11-18
+  body: none
+  auth: bearer
+}
+
+params:query {
+  date: 2026-11-18
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return attempt logs list", function() {
+    expect(res.body.data).to.be.an('object');
+    expect(res.body.data.logs).to.be.an('array');
+  });
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Assign Shift
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{BASE_URL}}/api/superadmin/shifts/assign
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+body:json {
+  {
+    "pegawai_id": 1,
+    "shift_config_id": 1
+  }
+}
+
+tests {
+  test("should return success or validation error", function() {
+    expect(res.status).to.be.oneOf([200, 400]);
+    expect(res.body).to.be.an('object');
+  });
+}

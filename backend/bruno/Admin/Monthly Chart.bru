@@ -1,0 +1,33 @@
+meta {
+  name: Monthly Chart
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/admin/monthly-chart?month=11&year=2026&user_type=all
+  body: none
+  auth: bearer
+}
+
+params:query {
+  month: 11
+  year: 2026
+  user_type: all
+}
+
+auth:bearer {
+  token: {{TOKEN}}
+}
+
+tests {
+  test("should return success", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+  });
+
+  test("should return monthly chart data", function() {
+    expect(res.body.data).to.be.an('object');
+    expect(res.body.data.chart).to.be.an('array');
+  });
+}
